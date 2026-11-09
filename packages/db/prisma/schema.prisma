@@ -1768,3 +1768,10 @@ model CompanyFavorite {
  @@index([companyId])
  @@map("companyFavorite")
 }
+
+model CloudDailyOverview {
+ date String @id
+ evidence Json
+ syncedAt DateTime @updatedAt
+ @@map("cloudDailyOverview")
+}

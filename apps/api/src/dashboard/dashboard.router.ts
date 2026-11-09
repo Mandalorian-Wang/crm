@@ -5,6 +5,8 @@ import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
+	cloudDashboardInput,
+	cloudDashboardOutput,
 	dashboardSummaryInput,
 	dashboardSummaryOutput,
 } from "./dashboard.contracts";
@@ -16,6 +18,11 @@ export class DashboardRouter {
 	constructor(
 		@Inject(DashboardService) private readonly dashboard: DashboardService,
 	) {}
+
+	@Query({ input: cloudDashboardInput, output: cloudDashboardOutput })
+	async cloudOverview(@Input() input: z.infer<typeof cloudDashboardInput>) {
+		return this.dashboard.cloudOverview(input.page);
+	}
 
 	@Query({
 		input: dashboardSummaryInput,

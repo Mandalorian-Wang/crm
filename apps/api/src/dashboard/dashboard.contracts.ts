@@ -111,3 +111,35 @@ export const dashboardSummaryOutput = z.object({
 	overdueTasks: z.array(overdueTaskOutput),
 	recentActivity: z.array(recentActivityOutput),
 });
+
+export const cloudDashboardInput = z.object({
+	page: z.number().int().min(1).max(100000).default(1),
+});
+
+export const cloudDashboardOutput = z.object({
+	date: z.string(),
+	timezone: z.literal("Asia/Shanghai"),
+	from: z.string(),
+	to: z.string(),
+	newCloudUsers: z.number().nullable(),
+	createdBoxUsers: z.number().nullable(),
+	activationRate: z.number().nullable(),
+	confirmedRate: z.number().nullable(),
+	unknownOrganizations: z.number(),
+	pendingMemberships: z.number(),
+	syncedAt: z.string().nullable(),
+	metricsStatus: z.enum(["READY", "PARTIAL", "PENDING"]),
+	page: z.number(),
+	pageSize: z.number(),
+	total: z.number(),
+	rows: z.array(
+		z.object({
+			id: z.string(),
+			name: z.string(),
+			email: z.string().nullable(),
+			organizations: z.array(z.object({ id: z.string(), name: z.string() })),
+			source: z.string(),
+			addedAt: z.string(),
+		}),
+	),
+});

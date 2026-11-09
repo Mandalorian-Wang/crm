@@ -1,6 +1,11 @@
 import { ActivityType, type Db, DealStage } from "@crm/db";
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import { activityMeta } from "@crm/validation/activity-meta";
+import {
+	CLOUD_OVERVIEW as CLOUD_DASHBOARD,
+	cloudOverviewEvidence,
+	previousShanghaiDay,
+} from "@crm/validation/cloud-overview";
 import { Injectable } from "@nestjs/common";
 import { toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
@@ -36,6 +41,124 @@ export class DashboardService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly conversion: ConversionService,
 	) {}
+
+	async cloudOverview(page: number, now = new Date()) {
+		const { start, end, date } = previousShanghaiDay(now);
+		const report = await this.db.cloudDailyOverview.findUnique({
+			where: { date },
+		});
+		const evidence = report ? cloudOverviewEvidence.parse(report.evidence) : {};
+		const entries = Object.entries(evidence);
+		const memberIds = [
+			...new Set(entries.flatMap(([, entry]) => entry.memberIds ?? [])),
+		];
+		const [contactsRefs, companyRefs] = await Promise.all([
+			this.db.importedRecord.findMany({
+				where: {
+					source: "cloud",
+					kind: "contact",
+					externalId: { in: memberIds },
+				},
+				select: { externalId: true, recordId: true },
+			}),
+			this.db.importedRecord.findMany({
+				where: {
+					source: "cloud",
+					kind: "company",
+					externalId: { in: entries.map(([id]) => id) },
+				},
+				select: { externalId: true, recordId: true },
+			}),
+		]);
+		const where = {
+			archivedAt: null,
+			id: { in: [...new Set(contactsRefs.map((ref) => ref.recordId))] },
+		};
+		const [contacts, total, companies] = await Promise.all([
+			this.db.contact.findMany({
+				where,
+				skip: (page - 1) * CLOUD_DASHBOARD.pageSize,
+				take: CLOUD_DASHBOARD.pageSize,
+				orderBy: [{ firstName: "asc" }, { id: "asc" }],
+				select: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					createdAt: true,
+				},
+			}),
+			this.db.contact.count({ where }),
+			this.db.company.findMany({
+				where: {
+					id: { in: companyRefs.map((ref) => ref.recordId) },
+					archivedAt: null,
+				},
+				select: { id: true, name: true },
+			}),
+		]);
+		const organizationByExternalId = new Map(
+			companyRefs.map((ref) => [
+				ref.externalId,
+				companies.find((company) => company.id === ref.recordId),
+			]),
+		);
+		const contactByExternalId = new Map(
+			contactsRefs.map((ref) => [ref.externalId, ref.recordId]),
+		);
+		const linked = new Map<string, { id: string; name: string }[]>();
+		for (const [orgId, entry] of entries) {
+			const organization = organizationByExternalId.get(orgId);
+			if (!organization) continue;
+			for (const userId of entry.memberIds ?? []) {
+				const contactId = contactByExternalId.get(userId);
+				if (!contactId) continue;
+				const groups = linked.get(contactId) ?? [];
+				if (!groups.some((group) => group.id === organization.id))
+					groups.push(organization);
+				linked.set(contactId, groups);
+			}
+		}
+		const active = entries.filter(
+			([, entry]) => entry.createdBox === true,
+		).length;
+		const unknown = entries.filter(
+			([, entry]) => entry.createdBox === null,
+		).length;
+		const pendingMemberships = entries.filter(
+			([, entry]) => entry.memberIds === null,
+		).length;
+		const rate = entries.length ? active / entries.length : null;
+		return {
+			date,
+			timezone: CLOUD_DASHBOARD.timezone,
+			from: start.toISOString(),
+			to: end.toISOString(),
+			newCloudUsers: report ? entries.length : null,
+			createdBoxUsers: report ? active : null,
+			activationRate: report && unknown === 0 ? rate : null,
+			confirmedRate: report ? rate : null,
+			unknownOrganizations: unknown,
+			pendingMemberships,
+			syncedAt: report?.syncedAt.toISOString() ?? null,
+			metricsStatus: !report
+				? ("PENDING" as const)
+				: unknown || pendingMemberships
+					? ("PARTIAL" as const)
+					: ("READY" as const),
+			page,
+			pageSize: CLOUD_DASHBOARD.pageSize,
+			total,
+			rows: contacts.map((contact) => ({
+				id: contact.id,
+				name: [contact.firstName, contact.lastName].filter(Boolean).join(" "),
+				email: contact.email,
+				organizations: linked.get(contact.id) ?? [],
+				addedAt: contact.createdAt.toISOString(),
+				source: "Cloud",
+			})),
+		};
+	}
 
 	async summary(actingUserId: string, input: DashboardSummaryInput) {
 		const mine = input.scope === "me";

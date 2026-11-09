@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@crm/db": "workspace:*",
+		"@crm/validation": "workspace:*",
 		"@crm/auth": "workspace:*",
 		"@crm/env": "workspace:*",
 		"better-auth": "1.7.7",

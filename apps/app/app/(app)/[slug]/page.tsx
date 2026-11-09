@@ -1,67 +1,46 @@
 import { Suspense } from "react";
 import {
 	PageShell,
-	PageShellActions,
 	PageShellContent,
+	PageShellDescription,
 	PageShellHeader,
 	PageShellHeading,
 	PageShellLoading,
+	PageShellTitle,
 } from "@/components/page-shell";
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
-import { DashboardSummary } from "./dashboard-summary";
-import {
-	OverviewGreeting,
-	OverviewGreetingFallback,
-} from "./overview-greeting";
-import {
-	OverviewScopeToggle,
-	OverviewScopeToggleFallback,
-} from "./overview-scope";
-import { loadOverviewSearchParams } from "./overview-search-params";
+import { CloudOverview } from "./cloud-overview";
 
-export default function OverviewPage({ searchParams }: PageProps<"/[slug]">) {
+export default function OverviewPage() {
 	return (
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
-					<Suspense fallback={<OverviewGreetingFallback />}>
-						<OverviewGreeting />
-					</Suspense>
+					<PageShellTitle>Cloud overview</PageShellTitle>
+					<PageShellDescription>
+						Yesterday’s acquisition and first-day Box usage.
+					</PageShellDescription>
 				</PageShellHeading>
-				<PageShellActions>
-					<Suspense fallback={<OverviewScopeToggleFallback />}>
-						<OverviewScopeToggle />
-					</Suspense>
-				</PageShellActions>
 			</PageShellHeader>
-
 			<PageShellContent>
 				<Suspense fallback={<PageShellLoading />}>
-					<Summary searchParams={searchParams} />
+					<Overview />
 				</Suspense>
 			</PageShellContent>
 		</PageShell>
 	);
 }
 
-async function Summary({
-	searchParams,
-}: Pick<PageProps<"/[slug]">, "searchParams">) {
-	const [, { scope }] = await Promise.all([
-		requireSession(),
-		loadOverviewSearchParams(searchParams),
-	]);
-
-	const queryClient = getServerQueryClient();
-	await queryClient.prefetchQuery(
-		getServerTrpc().dashboard.summary.queryOptions({ scope }),
+async function Overview() {
+	await requireSession();
+	await getServerQueryClient().prefetchQuery(
+		getServerTrpc().dashboard.cloudOverview.queryOptions({ page: 1 }),
 	);
-
 	return (
 		<HydrateClient>
-			<DashboardSummary />
+			<CloudOverview />
 		</HydrateClient>
 	);
 }

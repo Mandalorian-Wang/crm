@@ -27,7 +27,7 @@ const customerPage = z.object({
 	items: z.array(customerSchema),
 	nextCursor: z.string().nullable(),
 });
-const detailSchema = z.object({
+export const detailSchema = z.object({
 	members: z.object({
 		items: z.array(memberSchema),
 		nextCursor: z.string().nullable(),
@@ -109,7 +109,10 @@ export async function* customers(): AsyncGenerator<Customer> {
 	throw new Error("Customer pagination exceeded the page limit.");
 }
 
-export async function* members(organizationId: string): AsyncGenerator<Member> {
+export async function* members(
+	organizationId: string,
+	initial?: z.infer<typeof detailSchema>,
+): AsyncGenerator<Member> {
 	let cursor: string | null = null;
 	const cursors = new Set<string>();
 	for (let page = 0; page < SYNC.maxPages; page++) {
@@ -119,9 +122,12 @@ export async function* members(organizationId: string): AsyncGenerator<Member> {
 		);
 		url.searchParams.set("sectionLimit", "200");
 		if (cursor) url.searchParams.set("memberCursor", cursor);
-		const result = detailSchema.parse(
-			await (await request(url, backofficeHeaders())).json(),
-		);
+		const result =
+			page === 0 && initial
+				? initial
+				: detailSchema.parse(
+						await (await request(url, backofficeHeaders())).json(),
+					);
 		yield* result.members.items;
 		cursor = result.members.nextCursor;
 		if (!cursor) return;
@@ -158,4 +164,22 @@ export async function* stargazers(): AsyncGenerator<Star> {
 export function normalizedEmail(value: string): string | null {
 	const parsed = z.email().safeParse(value.trim().toLowerCase());
 	return parsed.success ? parsed.data : null;
+}
+
+const snapshotSchema = detailSchema.extend({
+	activation: z
+		.object({
+			lastBoxCreatedAt: z.string().datetime({ offset: true }).nullable(),
+		})
+		.nullable(),
+});
+export async function customerSnapshot(organizationId: string) {
+	const url = new URL(
+		`/v1/customers/${encodeURIComponent(organizationId)}`,
+		SYNC.backofficeOrigin,
+	);
+	url.searchParams.set("sectionLimit", "200");
+	return snapshotSchema.parse(
+		await (await request(url, backofficeHeaders())).json(),
+	);
 }

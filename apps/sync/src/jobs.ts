@@ -3,10 +3,11 @@ import { syncBilling } from "./billing";
 import { SYNC, scheduledDay } from "./config";
 import { ensureFields, setField } from "./fields";
 import { importCompany, importMember, importStar } from "./import";
+import { syncOverview } from "./overview";
 import { type Customer, customers, members, stargazers } from "./source";
 
 export async function runSource(
-	source: "cloud" | "github" | "billing",
+	source: "cloud" | "github" | "billing" | "overview",
 	force = false,
 ) {
 	if (source === "github" && !SYNC.githubEnabled) return;
@@ -49,7 +50,9 @@ export async function runSource(
 					where: { email: SYNC.ownerEmail },
 				});
 				await ensureFields();
-				if (source === "cloud") {
+				if (source === "overview") {
+					processed = await syncOverview(owner.id);
+				} else if (source === "cloud") {
 					const pending: { customer: Customer; companyId: string }[] = [];
 					for await (const customer of customers()) {
 						const companyId = await importCompany(customer, owner.id);
@@ -142,7 +145,7 @@ export async function runSource(
 			} catch (error) {
 				const message =
 					error instanceof Error &&
-					/HTTP \d{3}|is required|pagination|cursor|Member sync incomplete/.test(
+					/HTTP \d{3}|is required|pagination|cursor|Member sync incomplete|Overview sync incomplete/.test(
 						error.message,
 					)
 						? error.message

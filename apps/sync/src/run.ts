@@ -2,7 +2,7 @@ import { db } from "@crm/db";
 import { runSource } from "./jobs";
 
 let failed = false;
-for (const source of ["github", "cloud", "billing"] as const) {
+for (const source of ["overview", "github", "cloud", "billing"] as const) {
 	try {
 		await runSource(source, process.argv.includes("--force"));
 	} catch {

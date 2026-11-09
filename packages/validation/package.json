@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./cloud-overview": "./src/cloud-overview.ts",
 		"./activity-meta": "./src/activity-meta.ts",
 		"./agent-events": "./src/agent-events.ts",
 		"./agent-connection-request": "./src/agent-connection-request.ts",
