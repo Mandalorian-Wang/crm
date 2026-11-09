@@ -69,6 +69,7 @@ export async function readWorkspaceGate(
 }
 
 export async function readResearchGate(request: NextRequest): Promise<Gate> {
+	if (process.env.CRM_RESEARCH_OPTIONAL === "true") return "settled";
 	const { configured } = researchKeyAnswer.parse(
 		await read(request, "settings.researchKey"),
 	);

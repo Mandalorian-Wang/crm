@@ -43,7 +43,7 @@ export const SECTION_TITLE =
 
 export const PROPERTY_ROW = "grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2";
 
-export const PROPERTY_LABEL = "truncate text-muted-foreground text-xs";
+export const PROPERTY_LABEL = "break-words text-muted-foreground text-xs";
 
 const PROPERTY_CELL = "border border-transparent py-1";
 

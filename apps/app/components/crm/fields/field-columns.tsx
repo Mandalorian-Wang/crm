@@ -56,6 +56,7 @@ export function useFieldColumns<Row extends WithFields>(
 			.map((field) => ({
 				id: `field:${field.key}`,
 				header: field.label,
+				sortable: entity === "COMPANY" && field.key === "cloud_registered_at",
 				width: "w-[12%]",
 				hideBelow: "lg" as const,
 				cell: (row: Row) => (
@@ -64,5 +65,5 @@ export function useFieldColumns<Row extends WithFields>(
 					</span>
 				),
 			}));
-	}, [fields, byId]);
+	}, [fields, byId, entity]);
 }

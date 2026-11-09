@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { PasswordSignIn } from "./password-sign-in";
 import { SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
 
@@ -46,7 +47,7 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 			<Suspense
 				fallback={
 					<AuthHeading
-						title="Welcome back"
+						title="BoxLite CRM"
 						description="Sign in with your account to continue."
 					/>
 				}
@@ -85,7 +86,9 @@ async function SignIn({
 				? configured
 				: [];
 
-	if (!showSso && social.length === 0) {
+	const passwordLogin = process.env.CRM_PASSWORD_LOGIN === "true";
+
+	if (!passwordLogin && !showSso && social.length === 0) {
 		return (
 			<>
 				<AuthHeading
@@ -106,10 +109,11 @@ async function SignIn({
 	return (
 		<>
 			<AuthHeading
-				title="Welcome back"
+				title="BoxLite CRM"
 				description="Sign in with your account to continue."
 			/>
 
+			{passwordLogin ? <PasswordSignIn emailDomain="polygala.ai" /> : null}
 			{showSso ? <SsoSignIn providers={providers} /> : null}
 			{social.map((provider) => (
 				<SocialSignIn key={provider} provider={provider} />

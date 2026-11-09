@@ -32,7 +32,7 @@ import {
 const socialProviders: NonNullable<BetterAuthOptions["socialProviders"]> = {};
 const slackOAuth = env.slack;
 const slackRedirectUri = new URL(
-	"/api/auth/oauth2/callback/slack",
+	"/api/auth/callback/slack",
 	env.apiUrl,
 ).toString();
 
@@ -70,7 +70,7 @@ if (env.microsoft) {
 }
 
 export const auth = betterAuth({
-	appName: "CRM",
+	appName: "BoxLite CRM",
 	baseURL: env.apiUrl,
 
 	database: prismaAdapter(db, {
@@ -78,7 +78,8 @@ export const auth = betterAuth({
 	}),
 
 	emailAndPassword: {
-		enabled: false,
+		enabled: process.env.CRM_PASSWORD_LOGIN === "true",
+		disableSignUp: true,
 	},
 
 	socialProviders,
@@ -283,6 +284,14 @@ export const auth = betterAuth({
 		session: {
 			create: {
 				before: async (session) => {
+					const user = await db.user.findUnique({
+						where: { id: session.userId },
+						select: { email: true },
+					});
+					if (!user || !isWorkspaceEmail(user.email))
+						throw new APIError("FORBIDDEN", {
+							message: "This account is not allowed to sign in.",
+						});
 					const workspaceId = await ensureWorkspaceMembership(session.userId);
 
 					return {

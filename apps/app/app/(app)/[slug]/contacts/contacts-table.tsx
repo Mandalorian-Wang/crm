@@ -182,7 +182,7 @@ export function ContactsTable() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: clearing on archived-mode change is the entire purpose of this effect.
 	useEffect(() => {
 		selection.clear();
-	}, [input.archived]);
+	}, [input.archived, input.origin]);
 
 	const toggleArchived = (next: boolean) => {
 		selection.clear();
@@ -286,6 +286,14 @@ export function ContactsTable() {
 			total={contacts.data?.total ?? 0}
 			facetCounts={facetCounts}
 			facets={facets}
+			tabs={{
+				id: "origin",
+				allLabel: "All",
+				options: [
+					{ value: "github", label: "Github Opensource" },
+					{ value: "cloud", label: "Cloud" },
+				],
+			}}
 			selection={{
 				state: selection,
 				actions: (

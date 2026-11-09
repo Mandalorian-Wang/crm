@@ -2,6 +2,7 @@ import { DealStage } from "@crm/db/enums";
 import type { StatusTone } from "@crm/ui/components/status-indicator";
 
 const ORDER = [
+	DealStage.NEW_SIGNUP,
 	DealStage.DEMO_BOOKED,
 	DealStage.QUALIFIED_TO_BUY,
 	DealStage.DECISION_MAKER_BOUGHT_IN,
@@ -17,6 +18,7 @@ type DealStagePresentation = Record<
 >;
 
 const PRESENTATION: DealStagePresentation = {
+	NEW_SIGNUP: { label: "Cloud signup", tone: "neutral" },
 	DEMO_BOOKED: { label: "Demo booked", tone: "neutral" },
 	QUALIFIED_TO_BUY: { label: "Qualified to buy", tone: "info" },
 	DECISION_MAKER_BOUGHT_IN: { label: "Decision maker in", tone: "info" },
@@ -26,7 +28,7 @@ const PRESENTATION: DealStagePresentation = {
 	UNQUALIFIED_TO_BUY: { label: "Unqualified", tone: "neutral" },
 };
 
-export const OPEN_STAGES = ORDER.slice(0, 4) as readonly DealStage[];
+export const OPEN_STAGES = ORDER.slice(0, 5) as readonly DealStage[];
 
 export const LOSING_STAGES: readonly DealStage[] = [
 	DealStage.CLOSED_LOST,

@@ -22,7 +22,7 @@ import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 
 const GROUP_LABEL = {
-	company: "Companies",
+	company: "Cloud organizations",
 	contact: "Contacts",
 	deal: "Deals",
 } as const;

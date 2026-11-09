@@ -90,6 +90,21 @@ const SORTABLE: OrderByColumns<Prisma.ContactOrderByWithRelationInput[]> = {
 	archivedAt: (dir) => [{ archivedAt: { sort: dir, nulls: "last" } }],
 };
 
+export function contactOriginFilter(origin: string): Prisma.ContactWhereInput {
+	if (origin !== "github" && origin !== "cloud") return {};
+	return {
+		fieldValues: {
+			some: {
+				field: {
+					entity: "CONTACT",
+					key: origin === "github" ? "github_user_id" : "cloud_user_id",
+				},
+				text: { notIn: [""] },
+			},
+		},
+	};
+}
+
 @Injectable()
 export class ContactsService {
 	private readonly logger = new Logger(ContactsService.name);
@@ -810,6 +825,7 @@ export class ContactsService {
 	): Prisma.ContactWhereInput {
 		const and: Prisma.ContactWhereInput[] = [
 			this.searchFilter(input.q),
+			contactOriginFilter(input.origin),
 			archivedFilter(input.archived),
 			...this.fields.fieldFilters(filterableFields, input.fields),
 		];
@@ -840,7 +856,11 @@ export class ContactsService {
 		filterableFields: FieldDefinitionWithOptions[],
 	) {
 		const where = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [
+				this.searchFilter(input.q),
+				archivedFilter(input.archived),
+				contactOriginFilter(input.origin),
+			],
 		};
 
 		const [

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
 import { NextRequest } from "next/server";
 import { readResearchGate, readWorkspaceGate } from "../lib/onboarding";
@@ -11,10 +11,17 @@ const SLUG = "comp-ai";
 const realFetch = globalThis.fetch;
 
 const realMarketing = process.env.IS_MARKETING;
+const realResearchOptional = process.env.CRM_RESEARCH_OPTIONAL;
+beforeEach(() => {
+	process.env.CRM_RESEARCH_OPTIONAL = "false";
+});
 
 afterEach(() => {
 	globalThis.fetch = realFetch;
 	marketing(realMarketing);
+	if (realResearchOptional === undefined)
+		delete process.env.CRM_RESEARCH_OPTIONAL;
+	else process.env.CRM_RESEARCH_OPTIONAL = realResearchOptional;
 });
 
 function marketing(value: string | undefined) {
@@ -132,6 +139,18 @@ describe("readWorkspaceGate", () => {
 });
 
 describe("readResearchGate", () => {
+	it("allows an explicitly optional research integration without an API request", async () => {
+		process.env.CRM_RESEARCH_OPTIONAL = "true";
+		let called = false;
+		stub(async () => {
+			called = true;
+			throw new Error("unavailable");
+		});
+		expect(await readResearchGate(request("/", [SESSION_COOKIE]))).toBe(
+			"settled",
+		);
+		expect(called).toBe(false);
+	});
 	it("is settled once a key is saved, and required until then", async () => {
 		answerWith(researchKey(true));
 		expect(await readResearchGate(request("/", [SESSION_COOKIE]))).toBe(

@@ -12,6 +12,10 @@ import { recordFieldValues } from "../fields/fields.contracts";
 import { activityFacetInput, listInput } from "../trpc/list-input";
 
 export const contactListInput = listInput.extend({
+	origin: z
+		.string()
+		.default("all")
+		.pipe(z.enum(["all", "github", "cloud"]).catch("all")),
 	owner: z.array(z.string()).default([]),
 	company: z.array(z.string()).default([]),
 	source: z.array(z.string()).default([]),

@@ -7,10 +7,10 @@ describe("what the header calls this install", () => {
 		expect(workspaceLabel(DEFAULT_WORKSPACE_NAME)).toBe("CRM");
 	});
 
-	it("falls back to CRM while the workspace is still loading", () => {
-		expect(workspaceLabel(undefined)).toBe("CRM");
-		expect(workspaceLabel("")).toBe("CRM");
-		expect(workspaceLabel("   ")).toBe("CRM");
+	it("falls back to BoxLite CRM while the workspace is still loading", () => {
+		expect(workspaceLabel(undefined)).toBe("BoxLite CRM");
+		expect(workspaceLabel("")).toBe("BoxLite CRM");
+		expect(workspaceLabel("   ")).toBe("BoxLite CRM");
 	});
 
 	it("names the company once it has one", () => {

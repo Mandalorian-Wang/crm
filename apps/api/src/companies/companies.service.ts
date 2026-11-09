@@ -86,10 +86,34 @@ export class CompaniesService {
 		const where = this.buildWhere(input, filterableFields);
 		const { skip, take } = paginate(input);
 
+		let dateOrder: string[] | null = null;
+		if (input.sort === "field:cloud_registered_at") {
+			const matches = await this.db.company.findMany({
+				where,
+				select: { id: true },
+			});
+			const direction =
+				input.dir === "asc"
+					? PrismaNamespace.sql`ASC`
+					: PrismaNamespace.sql`DESC`;
+			const ordered = await this.db.$queryRaw<
+				{ id: string }[]
+			>(PrismaNamespace.sql`
+                SELECT c.id FROM unnest(${matches.map((row) => row.id)}::text[]) AS c(id)
+                LEFT JOIN "fieldDefinition" f ON f.entity = 'COMPANY' AND f.key = 'cloud_registered_at'
+                LEFT JOIN "fieldValue" v ON v."companyId" = c.id AND v."fieldId" = f.id
+                ORDER BY v.date ${direction} NULLS LAST, c.id ASC LIMIT ${take} OFFSET ${skip}
+            `);
+			dateOrder = ordered.map((row) => row.id);
+		}
+
 		const [rows, total, facetCounts] = await Promise.all([
 			this.db.company.findMany({
-				where,
-				skip,
+				where:
+					dateOrder === null
+						? where
+						: { AND: [where, { id: { in: dateOrder } }] },
+				skip: dateOrder === null ? skip : 0,
 				take,
 				orderBy: resolveOrderBy(input, SORTABLE, {
 					createdAt: "desc",
@@ -122,6 +146,12 @@ export class CompaniesService {
 			this.facetCounts(input, filterableFields),
 		]);
 
+		if (dateOrder !== null) {
+			const positions = new Map(dateOrder.map((id, index) => [id, index]));
+			rows.sort(
+				(a, b) => (positions.get(a.id) ?? 0) - (positions.get(b.id) ?? 0),
+			);
+		}
 		const ids = rows.map((row) => row.id);
 		const [queued, tableFields] = await Promise.all([
 			this.queue.queuedCompanies(ids),

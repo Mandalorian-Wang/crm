@@ -291,6 +291,7 @@ model RateLimit {
 }
 
 enum DealStage {
+  NEW_SIGNUP
   DEMO_BOOKED
   QUALIFIED_TO_BUY
   UNQUALIFIED_TO_BUY
@@ -1718,4 +1719,29 @@ model Apikey {
   @@index([configId])
   @@index([key])
   @@map("apikey")
+}
+
+model ImportedRecord {
+ id String @id @default(cuid())
+ source String
+ externalId String
+ kind String
+ recordId String
+ createdAt DateTime @default(now())
+ @@unique([source, externalId, kind])
+ @@index([recordId])
+ @@map("importedRecord")
+}
+
+model ImportRun {
+ id String @id @default(cuid())
+ source String
+ scheduledDay String
+ status String
+ processed Int @default(0)
+ error String?
+ startedAt DateTime @default(now())
+ finishedAt DateTime?
+ @@index([source, scheduledDay, status])
+ @@map("importRun")
 }

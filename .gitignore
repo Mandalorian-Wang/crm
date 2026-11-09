@@ -50,3 +50,11 @@ yarn-error.log*
 
 # Agent scratch files
 .scratch/
+
+# Private deployment state and database exports
+/deploy/boxlite/.local/
+/backups/
+*.dump
+
+__pycache__/
+*.pyc

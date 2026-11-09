@@ -81,8 +81,12 @@ export class MailboxTokenService {
 		}
 
 		try {
+			const account = await this.db.account.findFirstOrThrow({
+				where: { providerId, userId },
+				select: { id: true },
+			});
 			const { accessToken } = await auth.api.getAccessToken({
-				body: { providerId, userId },
+				body: { accountId: account.id, userId },
 			});
 
 			if (!accessToken) {

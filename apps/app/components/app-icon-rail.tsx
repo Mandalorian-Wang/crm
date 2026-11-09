@@ -49,7 +49,12 @@ const ITEMS: RailItem[] = [
 		match: "prefix",
 		related: ["/agents"],
 	},
-	{ title: "Companies", href: "/companies", icon: Building, match: "prefix" },
+	{
+		title: "Cloud organizations",
+		href: "/companies",
+		icon: Building,
+		match: "prefix",
+	},
 	{
 		title: "Contacts",
 		href: "/contacts",

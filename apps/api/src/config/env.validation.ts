@@ -19,6 +19,11 @@ export enum NodeEnv {
 }
 
 export class EnvironmentVariables {
+	@IsOptional()
+	@IsString()
+	@Matches(/^(true|false)$/)
+	CRM_PASSWORD_LOGIN?: string;
+
 	@IsEnum(NodeEnv)
 	NODE_ENV: NodeEnv = NodeEnv.Development;
 
