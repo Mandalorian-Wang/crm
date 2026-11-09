@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { scheduledDay } from "../src/config";
-import { customers, members, normalizedEmail } from "../src/source";
+import {
+	customerSnapshot,
+	customers,
+	members,
+	normalizedEmail,
+} from "../src/source";
 
 const originalKey = process.env.BACKOFFICE_API_KEY;
 afterEach(() => {
@@ -90,4 +95,31 @@ describe("import boundaries", () => {
 		);
 		await expect(customers().next()).rejects.toThrow("HTTP 403");
 	});
+});
+
+test("optional activation does not prevent importing organization members", async () => {
+	process.env.BACKOFFICE_API_KEY = "test-key";
+	spyOn(globalThis, "fetch").mockImplementation(
+		Object.assign(
+			async () =>
+				Response.json({
+					members: {
+						items: [
+							{
+								userId: "u1",
+								email: "user@example.com",
+								organizationRole: "owner",
+							},
+						],
+						nextCursor: null,
+					},
+				}),
+			{ preconnect: fetch.preconnect },
+		),
+	);
+	const snapshot = await customerSnapshot("org1");
+	expect(snapshot.activation).toBeUndefined();
+	const rows = [];
+	for await (const member of members("org1", snapshot)) rows.push(member);
+	expect(rows.map((row) => row.userId)).toEqual(["u1"]);
 });

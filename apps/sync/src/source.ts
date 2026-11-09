@@ -171,7 +171,8 @@ const snapshotSchema = detailSchema.extend({
 		.object({
 			lastBoxCreatedAt: z.string().datetime({ offset: true }).nullable(),
 		})
-		.nullable(),
+		.nullable()
+		.optional(),
 });
 export async function customerSnapshot(organizationId: string) {
 	const url = new URL(

@@ -94,7 +94,7 @@ export function CloudOverview() {
 				Organizations created yesterday, and the share that created a Box on the
 				same day.
 				{summary.unknownOrganizations > 0
-					? " The displayed rate is a lower bound; later Box creation can obscure earlier activity."
+					? " The displayed rate is a lower bound; complete Box creation history is unavailable."
 					: ""}
 				{summary.syncedAt
 					? ` Last synced: ${new Date(summary.syncedAt).toLocaleString("en-GB", { timeZone: summary.timezone })} (Shanghai).`
@@ -144,7 +144,8 @@ export function CloudOverview() {
 					) : (
 						<CardPanelEmpty>
 							{summary.total === 0
-								? summary.metricsStatus === "PENDING"
+								? summary.metricsStatus === "PENDING" ||
+									summary.pendingMemberships > 0
 									? "Awaiting daily sync."
 									: "No inbound users linked to yesterday’s new organizations."
 								: "No users on this page. Return to the previous page."}
