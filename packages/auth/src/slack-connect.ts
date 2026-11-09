@@ -38,9 +38,10 @@ export const slackConnectGuard = createAuthMiddleware(async (ctx) => {
 			throw new APIError("FORBIDDEN", {
 				message: "Use Linear to sign in with your @polygala.ai account.",
 			});
+		const callback = callbackParams.safeParse(ctx.params);
 		if (
 			ctx.path.startsWith("/callback/") &&
-			!["/callback/linear", "/callback/slack"].includes(ctx.path)
+			(!callback.success || !["linear", "slack"].includes(callback.data.id))
 		)
 			throw new APIError("FORBIDDEN", {
 				message: "Only Linear sign-in is enabled.",
