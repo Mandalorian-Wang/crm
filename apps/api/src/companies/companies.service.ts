@@ -102,8 +102,25 @@ export class CompaniesService {
 		};
 		const { skip, take } = paginate(input);
 
-		let dateOrder: string[] | null = null;
-		if (input.sort === "field:cloud_registered_at") {
+		let fieldOrder: string[] | null = null;
+		const sortKey = input.sort.startsWith("field:")
+			? input.sort.slice(6)
+			: null;
+		const sortField = sortKey
+			? await this.db.fieldDefinition.findFirst({
+					where: {
+						entity: "COMPANY",
+						key:
+							sortKey === "cloud_settled_usage_mtd"
+								? "cloud_settled_usage_usd"
+								: sortKey,
+						archivedAt: null,
+						type: { in: ["NUMBER", "DATE"] },
+					},
+					select: { key: true, type: true },
+				})
+			: null;
+		if (sortField) {
 			const matches = await this.db.company.findMany({
 				where,
 				select: { id: true },
@@ -112,24 +129,28 @@ export class CompaniesService {
 				input.dir === "asc"
 					? PrismaNamespace.sql`ASC`
 					: PrismaNamespace.sql`DESC`;
+			const valueColumn =
+				sortField.type === "DATE"
+					? PrismaNamespace.sql`v.date`
+					: PrismaNamespace.sql`v.number`;
 			const ordered = await this.db.$queryRaw<
 				{ id: string }[]
 			>(PrismaNamespace.sql`
                 SELECT c.id FROM unnest(${matches.map((row) => row.id)}::text[]) AS c(id)
-                LEFT JOIN "fieldDefinition" f ON f.entity = 'COMPANY' AND f.key = 'cloud_registered_at'
+                LEFT JOIN "fieldDefinition" f ON f.entity = 'COMPANY' AND f.key = ${sortField.key}
                 LEFT JOIN "fieldValue" v ON v."companyId" = c.id AND v."fieldId" = f.id
-                ORDER BY v.date ${direction} NULLS LAST, c.id ASC LIMIT ${take} OFFSET ${skip}
+                ORDER BY ${valueColumn} ${direction} NULLS LAST, c.id ASC LIMIT ${take} OFFSET ${skip}
             `);
-			dateOrder = ordered.map((row) => row.id);
+			fieldOrder = ordered.map((row) => row.id);
 		}
 
 		const [rows, total, facetCounts] = await Promise.all([
 			this.db.company.findMany({
 				where:
-					dateOrder === null
+					fieldOrder === null
 						? where
-						: { AND: [where, { id: { in: dateOrder } }] },
-				skip: dateOrder === null ? skip : 0,
+						: { AND: [where, { id: { in: fieldOrder } }] },
+				skip: fieldOrder === null ? skip : 0,
 				take,
 				orderBy: resolveOrderBy(input, SORTABLE, {
 					createdAt: "desc",
@@ -167,8 +188,8 @@ export class CompaniesService {
 			this.facetCounts(input, filterableFields, favoriteFilter),
 		]);
 
-		if (dateOrder !== null) {
-			const positions = new Map(dateOrder.map((id, index) => [id, index]));
+		if (fieldOrder !== null) {
+			const positions = new Map(fieldOrder.map((id, index) => [id, index]));
 			rows.sort(
 				(a, b) => (positions.get(a.id) ?? 0) - (positions.get(b.id) ?? 0),
 			);

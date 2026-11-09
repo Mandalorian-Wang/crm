@@ -56,12 +56,23 @@ export function useFieldColumns<Row extends WithFields>(
 			.map((field) => ({
 				id: `field:${field.key}`,
 				header: field.label,
-				sortable: entity === "COMPANY" && field.key === "cloud_registered_at",
+				sortable:
+					entity === "COMPANY" &&
+					(field.type === "NUMBER" ||
+						field.type === "DATE" ||
+						field.key === "cloud_settled_usage_mtd"),
 				width: "w-[12%]",
 				hideBelow:
 					field.key === "cloud_settled_usage_mtd" ? undefined : ("lg" as const),
 				cell: (row: Row) => (
-					<span className="truncate">
+					<span
+						className="truncate"
+						title={
+							field.key === "cloud_settled_usage_mtd"
+								? "Sorted by settled USD usage. Missing USD amounts appear last."
+								: undefined
+						}
+					>
 						{render(field.type, row.fields[field.key] ?? null, byId)}
 					</span>
 				),

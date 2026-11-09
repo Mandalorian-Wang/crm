@@ -70,3 +70,41 @@ test("Cloud date sorts before pagination and leaves missing dates last", async (
 	);
 	expect((await list("asc", 4)).rows).toEqual([]);
 });
+
+test("Settled usage sorts numerically across pages with zero before missing values", async () => {
+	const field = await db.fieldDefinition.upsert({
+		where: {
+			entity_key: { entity: "COMPANY", key: "cloud_settled_usage_usd" },
+		},
+		create: {
+			entity: "COMPANY",
+			key: "cloud_settled_usage_usd",
+			label: "Settled USD",
+			type: "NUMBER",
+			position: 0,
+		},
+		update: {},
+	});
+	const extra = await db.company.create({ data: { name: `${prefix}-zero` } });
+	ids.push(extra.id);
+	for (const [index, number] of [9, 100, null, 0].entries()) {
+		if (number !== null)
+			await db.fieldValue.create({
+				data: { fieldId: field.id, companyId: ids[index], number },
+			});
+	}
+	const list = (dir: "asc" | "desc", page: number) =>
+		service.list(
+			companyListInput.parse({
+				q: prefix,
+				sort: "field:cloud_settled_usage_mtd",
+				dir,
+				page,
+				pageSize: 1,
+			}),
+		);
+	for (const [index, id] of [ids[3], ids[0], ids[1], ids[2]].entries())
+		expect((await list("asc", index + 1)).rows[0]?.id).toBe(id);
+	for (const [index, id] of [ids[1], ids[0], ids[3], ids[2]].entries())
+		expect((await list("desc", index + 1)).rows[0]?.id).toBe(id);
+});
