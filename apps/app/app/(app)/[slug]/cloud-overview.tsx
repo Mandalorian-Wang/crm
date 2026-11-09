@@ -1,5 +1,6 @@
 "use client";
 
+import InfoIcon from "@carbon/icons-react/es/Information";
 import { Button } from "@crm/ui/components/button";
 import {
 	Card,
@@ -12,12 +13,19 @@ import {
 import { DashboardGrid } from "@crm/ui/components/dashboard";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { Spinner } from "@crm/ui/components/spinner";
-import { StatCard } from "@crm/ui/components/stat-card";
+import { MetricCard } from "@crm/ui/components/stat-card";
 import { TableCell } from "@crm/ui/components/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@crm/ui/components/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { parseAsInteger, parseAsNumberLiteral, useQueryStates } from "nuqs";
+import { useState } from "react";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useTRPC } from "@/lib/trpc/client";
+import { CloudOrganizationsDialog } from "./cloud-organizations-dialog";
 
 const COLUMNS = [
 	{ id: "name", header: "Name" },
@@ -28,6 +36,9 @@ const COLUMNS = [
 
 export function CloudOverview() {
 	const trpc = useTRPC();
+	const [organizationScope, setOrganizationScope] = useState<
+		"all" | "active" | "inactive" | "unknown" | null
+	>(null);
 	const [{ inboundPage: rawPage, days }, setWindow] = useQueryStates({
 		inboundPage: parseAsInteger.withDefault(1),
 		days: parseAsNumberLiteral([1, 7, 15] as const).withDefault(1),
@@ -68,74 +79,92 @@ export function CloudOverview() {
 	const pages = Math.max(1, Math.ceil(summary.total / summary.pageSize));
 	return (
 		<div className="flex flex-col gap-6">
-			<fieldset className="flex flex-wrap gap-2" aria-label="Statistics window">
-				{([1, 7, 15] as const).map((value) => (
-					<Button
-						key={value}
-						size="sm"
-						variant={days === value ? "contrast" : "outline"}
-						aria-pressed={days === value}
-						onClick={() => setWindow({ days: value, inboundPage: 1 })}
-					>
-						{value === 1 ? "Yesterday" : `Last ${value} days`}
-					</Button>
-				))}
-			</fieldset>
-			<p className="text-sm text-muted-foreground">
-				{label} · {summary.date} →{" "}
-				{new Date(new Date(summary.to).getTime() - 1).toLocaleDateString(
-					"en-CA",
-					{ timeZone: summary.timezone },
-				)}{" "}
-				· Asia/Shanghai · complete calendar days
-			</p>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<fieldset
+					className="flex flex-wrap gap-2"
+					aria-label="Statistics window"
+				>
+					{([1, 7, 15] as const).map((value) => (
+						<Button
+							key={value}
+							size="sm"
+							variant={days === value ? "contrast" : "outline"}
+							aria-pressed={days === value}
+							onClick={() => setWindow({ days: value, inboundPage: 1 })}
+						>
+							{value === 1 ? "Yesterday" : `Last ${value} days`}
+						</Button>
+					))}
+				</fieldset>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label="Reporting window and sync time"
+						>
+							<InfoIcon />
+							{summary.date} –{" "}
+							{new Date(new Date(summary.to).getTime() - 1).toLocaleDateString(
+								"en-CA",
+								{ timeZone: summary.timezone },
+							)}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						Complete calendar days · UTC+8. Updated{" "}
+						{summary.syncedAt
+							? new Date(summary.syncedAt).toLocaleString("en-GB", {
+									timeZone: summary.timezone,
+								})
+							: "not yet"}
+						. Box activity can be unconfirmed when history is incomplete.
+					</TooltipContent>
+				</Tooltip>
+			</div>
+			{organizationScope ? (
+				<CloudOrganizationsDialog
+					key={`${summary.date}:${days}`}
+					date={summary.date}
+					days={days}
+					scope={organizationScope}
+					onClose={() => setOrganizationScope(null)}
+				/>
+			) : null}
 			<DashboardGrid columns={2}>
-				<Card>
-					<StatCard
-						label={`New Cloud users · ${label}`}
-						value={summary.newCloudUsers ?? "—"}
-						description="Cloud users are counted as organizations"
-					/>
-				</Card>
-				<Card>
-					<StatCard
-						label={`Created a Box · ${label}`}
-						value={
-							summary.activationRate !== null
-								? `${(summary.activationRate * 100).toFixed(1)}%`
-								: summary.confirmedRate !== null &&
-										summary.unknownOrganizations > 0
-									? `≥${(summary.confirmedRate * 100).toFixed(1)}%`
-									: "—"
-						}
-						description={
-							summary.newCloudUsers === null
-								? "Awaiting daily sync"
-								: summary.newCloudUsers === 0
-									? "No new Cloud organizations in this window"
-									: `${summary.createdBoxUsers} of ${summary.newCloudUsers} new organizations confirmed; ${summary.unknownOrganizations} unconfirmed`
-						}
-					/>
-				</Card>
+				<MetricCard
+					label="New Cloud organizations"
+					value={summary.newCloudUsers ?? "—"}
+					description={label}
+					disabled={summary.newCloudUsers === null}
+					onClick={() => setOrganizationScope("all")}
+				/>
+				<MetricCard
+					label="Box activation"
+					value={
+						summary.activationRate !== null
+							? `${(summary.activationRate * 100).toFixed(1)}%`
+							: summary.confirmedRate !== null &&
+									summary.unknownOrganizations > 0
+								? `≥${(summary.confirmedRate * 100).toFixed(1)}%`
+								: "—"
+					}
+					description={
+						summary.newCloudUsers === null
+							? "Awaiting sync"
+							: `${summary.createdBoxUsers} / ${summary.newCloudUsers} organizations · ${summary.unknownOrganizations} unconfirmed`
+					}
+					disabled={summary.newCloudUsers === null}
+					onClick={() => setOrganizationScope("active")}
+				/>
 			</DashboardGrid>
-			<p className="text-xs text-muted-foreground">
-				Organizations created in this window, and the share that created a Box
-				within the same window.
-				{summary.unknownOrganizations > 0
-					? " The displayed rate is a lower bound; complete Box creation history is unavailable."
-					: ""}
-				{summary.syncedAt
-					? ` Last synced: ${new Date(summary.syncedAt).toLocaleString("en-GB", { timeZone: summary.timezone })} (Shanghai).`
-					: " Awaiting daily sync."}
-			</p>
 			<Card>
 				<CardHeader>
 					<CardTitle>New inbound users · {label}</CardTitle>
 					<CardDescription>
-						{summary.total} unique inbound users associated with organizations
-						created in this window.
+						{summary.total} users
 						{summary.pendingMemberships > 0
-							? ` Membership sync pending for ${summary.pendingMemberships} organizations.`
+							? ` · ${summary.pendingMemberships} organizations syncing`
 							: ""}
 					</CardDescription>
 				</CardHeader>

@@ -8,6 +8,10 @@ import {
 import { OPEN_DEAL_STAGES } from "@crm/db/deal-stage";
 import type { FieldDefinitionWithOptions } from "@crm/db/fields";
 import {
+	CLOUD_OVERVIEW,
+	previousShanghaiDay,
+} from "@crm/validation/cloud-overview";
+import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
@@ -45,6 +49,7 @@ import type {
 	CompanyRow,
 	CompanyUpdateInput,
 } from "./companies.contracts";
+import { companyMemberIds } from "./company-members";
 import { normalizeDomain } from "./domain";
 import { FaviconService } from "./favicon.service";
 
@@ -57,6 +62,8 @@ const OWNER_SELECT = {
 
 const SORTABLE: OrderByColumns<Prisma.CompanyOrderByWithRelationInput> = {
 	name: (dir) => ({ name: dir }),
+	nextFollowUp: (dir) => ({ nextFollowUpAt: { sort: dir, nulls: "last" } }),
+	followUpStatus: (dir) => ({ followUpStatus: dir }),
 	domain: (dir) => ({ domain: dir }),
 	industry: (dir) => ({ industry: dir }),
 	createdAt: (dir) => ({ createdAt: dir }),
@@ -158,6 +165,9 @@ export class CompaniesService {
 				select: {
 					id: true,
 					name: true,
+					email: true,
+					followUpStatus: true,
+					nextFollowUpAt: true,
 					domain: true,
 					iconUrl: true,
 					iconDarkUrl: true,
@@ -195,16 +205,20 @@ export class CompaniesService {
 			);
 		}
 		const ids = rows.map((row) => row.id);
-		const [queued, tableFields] = await Promise.all([
+		const [queued, tableFields, members] = await Promise.all([
 			this.queue.queuedCompanies(ids),
 			this.fields.tableValuesFor("COMPANY", ids),
+			companyMemberIds(this.db, ids),
 		]);
 
 		return {
 			rows: rows.map((row) => ({
 				isFavorite: favoriteIds.has(row.id),
+				followUpStatus: row.followUpStatus,
+				nextFollowUp: row.nextFollowUpAt?.toISOString().slice(0, 10) ?? null,
 				id: row.id,
 				name: row.name,
+				email: row.email,
 				domain: row.domain,
 				iconUrl: row.iconUrl,
 				iconDarkUrl: row.iconDarkUrl,
@@ -216,7 +230,7 @@ export class CompaniesService {
 				queued: queued.has(row.id),
 				source: row.source,
 				owner: row.owner,
-				contactCount: row._count.contacts,
+				contactCount: members.get(row.id)?.size ?? 0,
 				openDealCount: row._count.deals,
 				lastActivityAt: row.lastActivityAt?.toISOString() ?? null,
 				createdAt: row.createdAt.toISOString(),
@@ -229,6 +243,7 @@ export class CompaniesService {
 	}
 
 	async byId(id: string) {
+		const members = await companyMemberIds(this.db, [id]);
 		const company = await this.db.company.findUnique({
 			where: { id },
 			select: {
@@ -305,6 +320,20 @@ export class CompaniesService {
 			throw new NotFoundException(`No company with id ${id}.`);
 		}
 
+		const linkedContacts = await this.db.contact.findMany({
+			where: { id: { in: [...(members.get(id) ?? [])] } },
+			orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+			select: {
+				id: true,
+				firstName: true,
+				lastName: true,
+				email: true,
+				title: true,
+				imageUrl: true,
+				owner: { select: OWNER_SELECT },
+			},
+		});
+
 		const {
 			deals,
 			primaryContact,
@@ -316,6 +345,7 @@ export class CompaniesService {
 
 		return {
 			...rest,
+			contacts: linkedContacts,
 			fields: await this.fields.valuesFor("COMPANY", id),
 			queued: await this.queue.isQueued({ companyId: id }),
 			createdAt: createdAt.toISOString(),
@@ -338,7 +368,13 @@ export class CompaniesService {
 	async options(q: string) {
 		return this.db.company.findMany({
 			where: this.searchFilter(q),
-			select: { id: true, name: true, domain: true, iconUrl: true },
+			select: {
+				id: true,
+				name: true,
+				domain: true,
+				email: true,
+				iconUrl: true,
+			},
 			orderBy: { name: "asc" },
 			take: 100,
 		});
@@ -445,11 +481,19 @@ export class CompaniesService {
 					await this.fields.applyValues(tx, "COMPANY", id, input.fields);
 				}
 
-				return tx.company.update({
+				const updated = await tx.company.update({
 					where: { id },
 					data,
 					select: { id: true, name: true, domain: true },
 				});
+				if (input.ownerId !== undefined) {
+					const members = await companyMemberIds(tx, [id]);
+					await tx.contact.updateMany({
+						where: { id: { in: [...(members.get(id) ?? [])] } },
+						data: { ownerId: input.ownerId || null },
+					});
+				}
+				return updated;
 			});
 
 			if (data.enrichmentStatus === "PENDING") {
@@ -588,9 +632,21 @@ export class CompaniesService {
 		await requireOwner(this.db, ownerId);
 
 		const ids = [...new Set(input.ids)];
-		const { count } = await this.db.company.updateMany({
-			where: { id: { in: ids } },
-			data: { ownerId },
+		const { count } = await this.db.$transaction(async (tx) => {
+			const result = await tx.company.updateMany({
+				where: { id: { in: ids } },
+				data: { ownerId },
+			});
+			const members = await companyMemberIds(tx, ids);
+			await tx.contact.updateMany({
+				where: {
+					id: {
+						in: [...new Set([...members.values()].flatMap((ids) => [...ids]))],
+					},
+				},
+				data: { ownerId },
+			});
+			return result;
 		});
 
 		this.logger.log({
@@ -682,7 +738,11 @@ export class CompaniesService {
 			if (!contact) {
 				throw new NotFoundException(`No contact with id ${contactId}.`);
 			}
-			if (contact.companyId !== companyId) {
+			if (
+				!(await companyMemberIds(this.db, [companyId]))
+					.get(companyId)
+					?.has(contactId)
+			) {
 				throw new BadRequestException(
 					"That contact does not work at this company.",
 				);
@@ -708,6 +768,15 @@ export class CompaniesService {
 			OR: [
 				{ name: { contains: term, mode: "insensitive" } },
 				{ domain: { contains: term, mode: "insensitive" } },
+				{ email: { contains: term, mode: "insensitive" } },
+				{
+					fieldValues: {
+						some: {
+							field: { key: "cloud_organization_id", entity: "COMPANY" },
+							text: { contains: term, mode: "insensitive" },
+						},
+					},
+				},
 			],
 		};
 	}
@@ -736,6 +805,30 @@ export class CompaniesService {
 			and.push({ source: { in: input.source as RecordSource[] } });
 		}
 
+		if (input.followUpStatus.length)
+			and.push({ followUpStatus: { in: input.followUpStatus } });
+		if (input.followUpDue.length) {
+			const today = previousShanghaiDay(new Date()).end;
+			const date = new Date(today.getTime() + CLOUD_OVERVIEW.utcOffsetMs);
+			const tomorrow = new Date(date.getTime() + CLOUD_OVERVIEW.dayMs);
+			const choices: Prisma.CompanyWhereInput[] = [];
+			if (input.followUpDue.includes("due"))
+				choices.push({
+					nextFollowUpAt: { lt: tomorrow },
+					followUpStatus: { not: "COMPLETED" },
+				});
+			if (input.followUpDue.includes("overdue"))
+				choices.push({
+					nextFollowUpAt: { lt: date },
+					followUpStatus: { not: "COMPLETED" },
+				});
+			if (input.followUpDue.includes("unscheduled"))
+				choices.push({
+					nextFollowUpAt: null,
+					followUpStatus: { not: "COMPLETED" },
+				});
+			if (choices.length) and.push({ OR: choices });
+		}
 		const activity = activityFilter(input.activity);
 		if (activity) and.push(activity);
 

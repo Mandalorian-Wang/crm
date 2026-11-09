@@ -17,20 +17,27 @@ export class UsersService {
 		const preference = await this.db.userTablePreference.findUnique({
 			where: { userId_table: { userId, table } },
 		});
-		return { hiddenColumns: preference?.hiddenColumns ?? null };
+		return {
+			hiddenColumns: preference?.hiddenColumns ?? null,
+			columnOrder: preference?.columnOrder ?? [],
+		};
 	}
 	async saveTablePreference(
 		userId: string,
 		table: string,
 		hiddenColumns: string[],
+		columnOrder?: string[],
 	) {
 		const unique = [...new Set(hiddenColumns)];
 		const result = await this.db.userTablePreference.upsert({
 			where: { userId_table: { userId, table } },
-			create: { userId, table, hiddenColumns: unique },
-			update: { hiddenColumns: unique },
+			create: { userId, table, hiddenColumns: unique, columnOrder },
+			update: { hiddenColumns: unique, columnOrder },
 		});
-		return { hiddenColumns: result.hiddenColumns };
+		return {
+			hiddenColumns: result.hiddenColumns,
+			columnOrder: result.columnOrder,
+		};
 	}
 	async setCompanyFavorite(
 		userId: string,

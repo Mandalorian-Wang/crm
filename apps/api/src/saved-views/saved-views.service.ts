@@ -16,6 +16,38 @@ import type {
 export class SavedViewsService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
+	async defaultView(entity: FieldEntity, userId: string) {
+		const preference = await this.db.userViewDefault.findUnique({
+			where: { userId_entity: { userId, entity } },
+		});
+		if (!preference) return null;
+		const view = await this.db.savedView.findFirst({
+			where: {
+				id: preference.viewId,
+				entity,
+				OR: [{ ownerId: userId }, { shared: true }],
+			},
+		});
+		return view ? this.serialize(view, userId) : null;
+	}
+	async setDefault(entity: FieldEntity, id: string | null, userId: string) {
+		if (id === null) {
+			await this.db.userViewDefault.deleteMany({ where: { userId, entity } });
+			return null;
+		}
+		const view = await this.db.savedView.findFirst({
+			where: { id, entity, OR: [{ ownerId: userId }, { shared: true }] },
+		});
+		if (!view)
+			throw new NotFoundException("This view is not available to you.");
+		await this.db.userViewDefault.upsert({
+			where: { userId_entity: { userId, entity } },
+			create: { userId, entity, viewId: id },
+			update: { viewId: id },
+		});
+		return this.serialize(view, userId);
+	}
+
 	async list(entity: FieldEntity, userId: string): Promise<SavedView[]> {
 		const rows = await this.db.savedView.findMany({
 			where: { entity, OR: [{ shared: true }, { ownerId: userId }] },
@@ -79,7 +111,10 @@ export class SavedViewsService {
 		}
 
 		try {
-			await this.db.savedView.delete({ where: { id } });
+			await this.db.$transaction([
+				this.db.userViewDefault.deleteMany({ where: { viewId: id } }),
+				this.db.savedView.delete({ where: { id } }),
+			]);
 		} catch (error) {
 			throw this.translate(error, id);
 		}

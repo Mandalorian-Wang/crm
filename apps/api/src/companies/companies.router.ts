@@ -31,13 +31,73 @@ import {
 	setPrimaryContactInput,
 } from "./companies.contracts";
 import { CompaniesService } from "./companies.service";
+import {
+	dailyNoteCreateInput,
+	dailyNotesOutput,
+	dailyNoteUpdateInput,
+} from "./daily-notes.contracts";
+import { DailyNotesService } from "./daily-notes.service";
+import {
+	contactLogInput,
+	followUpBulkInput,
+	followUpBulkOutput,
+	followUpInput,
+	followUpOutput,
+	syncStatusOutput,
+} from "./follow-up.contracts";
+import { FollowUpService } from "./follow-up.service";
 
 @Router({ alias: "companies" })
 @UseMiddlewares(AuthMiddleware)
 export class CompaniesRouter {
 	constructor(
+		@Inject(DailyNotesService) private readonly notes: DailyNotesService,
 		@Inject(CompaniesService) private readonly companies: CompaniesService,
+		@Inject(FollowUpService) private readonly followUps: FollowUpService,
 	) {}
+
+	@Query({ input: companyIdInput, output: dailyNotesOutput })
+	dailyNotes(@Input("id") id: string) {
+		return this.notes.list(id);
+	}
+	@Mutation({ input: dailyNoteCreateInput, output: dailyNotesOutput })
+	addDailyNote(
+		@Input() input: z.infer<typeof dailyNoteCreateInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.notes.create(input, ctx.user.id);
+	}
+	@Mutation({ input: dailyNoteUpdateInput, output: dailyNotesOutput })
+	updateDailyNote(
+		@Input() input: z.infer<typeof dailyNoteUpdateInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.notes.update(input, ctx.user.id);
+	}
+
+	@Query({ output: syncStatusOutput })
+	syncStatus() {
+		return this.followUps.syncStatus();
+	}
+	@Query({ input: companyIdInput, output: followUpOutput })
+	followUp(@Input("id") id: string) {
+		return this.followUps.read(id);
+	}
+	@Mutation({ input: followUpInput, output: followUpOutput })
+	updateFollowUp(@Input() input: z.infer<typeof followUpInput>) {
+		return this.followUps.update(input.companyId, input.data);
+	}
+	@Mutation({ input: contactLogInput, output: followUpOutput })
+	logContact(
+		@Input() input: z.infer<typeof contactLogInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.followUps.log(input, ctx.user.id);
+	}
+	@Mutation({ input: followUpBulkInput, output: followUpBulkOutput })
+	bulkFollowUp(@Input() input: z.infer<typeof followUpBulkInput>) {
+		return this.followUps.bulk(input.ids, input.data);
+	}
 
 	@Query({
 		input: companyListInput,

@@ -46,6 +46,15 @@ export async function linearRequest<T>(
 	query: string,
 	variables: {
 		id?: string;
+		customerId?: string;
+		issueId?: string;
+		needInput?: {
+			id: string;
+			customerId: string;
+			issueId: string;
+			body: string;
+			attachmentUrl?: string;
+		};
 		contentType?: string;
 		filename?: string;
 		size?: number;
@@ -95,7 +104,7 @@ export async function linearRequest<T>(
 		);
 	const envelope = z.object({
 		data: z.unknown().optional(),
-		errors: z.array(z.unknown()).optional(),
+		errors: z.array(z.object({ message: z.string() })).optional(),
 	});
 	let raw: z.infer<typeof envelope>;
 	try {
@@ -103,6 +112,10 @@ export async function linearRequest<T>(
 	} catch {
 		throw new BadGatewayException("Linear returned an invalid response.");
 	}
+	if (raw.errors?.some((error) => error.message.includes("Entity not found")))
+		throw new BadGatewayException(
+			"This Linear record is not visible to the configured API key. Check the link and team access.",
+		);
 	if (raw.errors?.length)
 		throw new BadGatewayException(
 			"Linear could not complete the request. Check the input and key permissions.",

@@ -7,6 +7,8 @@ import { activityFacetInput, listInput } from "../trpc/list-input";
 
 export const companyListInput = listInput.extend({
 	favorites: z.string().default("all"),
+	followUpStatus: z.array(z.string()).default([]),
+	followUpDue: z.array(z.string()).default([]),
 	owner: z.array(z.string()).default([]),
 	industry: z.array(z.string()).default([]),
 	enrichment: z.array(z.string()).default([]),
@@ -115,6 +117,9 @@ const companyRecordFieldOutput = z.object({
 });
 
 export const companyRowOutput = z.object({
+	followUpStatus: z.string(),
+	nextFollowUp: z.string().nullable(),
+	email: z.string().nullable(),
 	isFavorite: z.boolean(),
 	id: z.string(),
 	name: z.string(),
@@ -218,6 +223,7 @@ export const companyDetailOutput = z.object({
 
 export const companyOptionOutput = z.array(
 	z.object({
+		email: z.string().nullable(),
 		id: z.string(),
 		name: z.string(),
 		domain: z.string().nullable(),

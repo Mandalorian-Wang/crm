@@ -50,3 +50,8 @@ export type SavedView = z.infer<typeof savedViewOutput>;
 export const savedViewListOutput = z.array(savedViewOutput);
 
 export const savedViewDeleteOutput = z.object({ id: z.string() });
+
+export const savedViewDefaultInput = savedViewListInput.extend({
+	id: z.string().nullable(),
+});
+export const savedViewDefaultOutput = savedViewOutput.nullable();

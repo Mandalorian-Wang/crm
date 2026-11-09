@@ -6,11 +6,15 @@ import { TrpcModule } from "../trpc/trpc.module";
 import { CompaniesRouter } from "./companies.router";
 import { CompaniesService } from "./companies.service";
 import { CompanyDirectoryService } from "./company-directory.service";
+import { DailyNotesService } from "./daily-notes.service";
 import { FaviconService } from "./favicon.service";
+import { FollowUpService } from "./follow-up.service";
 
 @Module({
 	imports: [FieldsModule, TrpcModule, AgentModule, CurrencyModule],
 	providers: [
+		DailyNotesService,
+		FollowUpService,
 		CompaniesService,
 		CompanyDirectoryService,
 		CompaniesRouter,

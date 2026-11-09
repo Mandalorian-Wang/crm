@@ -12,15 +12,25 @@ import {
 } from "@crm/ui/components/dialog";
 import { Field, FieldGroup, FieldLabel } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@crm/ui/components/select";
 import { Textarea } from "@crm/ui/components/textarea";
 import type { RequestImage } from "@crm/validation/crm-request";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
+import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import { RequestImages } from "./request-images";
 
-export function SubmitRequest() {
+export function SubmitRequest({ companyId }: { companyId?: string }) {
 	const trpc = useTRPC();
+	const cache = useCrmCache();
 	const titleId = useId();
 	const contentId = useId();
 	const [open, setOpen] = useState(false);
@@ -29,7 +39,20 @@ export function SubmitRequest() {
 	const [requestId, setRequestId] = useState<string | null>(null);
 	const [images, setImages] = useState<RequestImage[]>([]);
 	const [readingImages, setReadingImages] = useState(false);
-	const submit = useMutation(trpc.linear.submitRequest.mutationOptions());
+	const crmSubmit = useMutation(trpc.linear.submitRequest.mutationOptions());
+	const customerSubmit = useMutation(
+		trpc.linear.createCustomerIssue.mutationOptions({
+			onSuccess: () => (companyId ? cache.linear(companyId) : undefined),
+		}),
+	);
+	const submit = companyId ? customerSubmit : crmSubmit;
+	const [projectId, setProjectId] = useState("");
+	const [teamId, setTeamId] = useState("");
+	const projects = useQuery({
+		...trpc.linear.projects.queryOptions(),
+		enabled: Boolean(companyId && open),
+	});
+	const project = projects.data?.find((item) => item.id === projectId);
 	const busy = submit.isPending || readingImages;
 	return (
 		<Dialog
@@ -40,15 +63,18 @@ export function SubmitRequest() {
 		>
 			<DialogTrigger asChild>
 				<Button variant="outline" size="sm">
-					Submit request
+					{companyId ? "Create issue" : "Submit request"}
 				</Button>
 			</DialogTrigger>
 			<DialogContent scrollable showCloseButton={!busy}>
 				<DialogHeader>
-					<DialogTitle>Submit a CRM request</DialogTitle>
+					<DialogTitle>
+						{companyId ? "Create a customer issue" : "Submit a CRM request"}
+					</DialogTitle>
 					<DialogDescription>
-						Send feedback to the Internal CRM system project in Linear. Your
-						request will include the CRM label and your name.
+						{companyId
+							? "Choose a project and team. The issue will link to this organization’s Linear customer and include a CRM backlink."
+							: "Send feedback to the Internal CRM system project in Linear. Your request will include the CRM label and your name."}
 					</DialogDescription>
 				</DialogHeader>
 				{submit.data ? (
@@ -81,10 +107,94 @@ export function SubmitRequest() {
 							event.preventDefault();
 							const id = requestId ?? crypto.randomUUID();
 							setRequestId(id);
-							submit.mutate({ requestId: id, title, content, images });
+							if (companyId)
+								customerSubmit.mutate({
+									companyId,
+									projectId,
+									teamId,
+									requestId: id,
+									title,
+									content,
+									images,
+								});
+							else crmSubmit.mutate({ requestId: id, title, content, images });
 						}}
 					>
 						<FieldGroup>
+							{companyId ? (
+								<>
+									<Field>
+										<FieldLabel>Linear project</FieldLabel>
+										<Select
+											value={projectId}
+											onValueChange={(value) => {
+												setProjectId(value);
+												const selected = projects.data?.find(
+													(item) => item.id === value,
+												);
+												setTeamId(
+													selected?.teams.nodes.length === 1
+														? (selected.teams.nodes[0]?.id ?? "")
+														: "",
+												);
+											}}
+											disabled={busy}
+										>
+											<SelectTrigger aria-label="Linear project">
+												<SelectValue
+													placeholder={
+														projects.isPending
+															? "Loading projects…"
+															: "Select a project"
+													}
+												/>
+											</SelectTrigger>
+											<SelectContent>
+												<SelectGroup>
+													{projects.data?.map((item) => (
+														<SelectItem key={item.id} value={item.id}>
+															{item.name}
+														</SelectItem>
+													))}
+												</SelectGroup>
+											</SelectContent>
+										</Select>
+										{projects.error ? (
+											<p role="alert">
+												{projects.error.message}
+												<Button
+													type="button"
+													variant="link"
+													onClick={() => projects.refetch()}
+												>
+													Retry
+												</Button>
+											</p>
+										) : null}
+									</Field>
+									<Field>
+										<FieldLabel>Linear team</FieldLabel>
+										<Select
+											value={teamId}
+											onValueChange={setTeamId}
+											disabled={busy || !project}
+										>
+											<SelectTrigger aria-label="Linear team">
+												<SelectValue placeholder="Select a team" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectGroup>
+													{project?.teams.nodes.map((team) => (
+														<SelectItem key={team.id} value={team.id}>
+															{team.name}
+														</SelectItem>
+													))}
+												</SelectGroup>
+											</SelectContent>
+										</Select>
+									</Field>
+								</>
+							) : null}
 							<Field>
 								<FieldLabel htmlFor={titleId}>Title</FieldLabel>
 								<Input
@@ -132,7 +242,12 @@ export function SubmitRequest() {
 								</Button>
 								<Button
 									type="submit"
-									disabled={busy || !title.trim() || !content.trim()}
+									disabled={
+										busy ||
+										!title.trim() ||
+										!content.trim() ||
+										Boolean(companyId && (!projectId || !teamId))
+									}
 								>
 									{readingImages
 										? "Reading images…"

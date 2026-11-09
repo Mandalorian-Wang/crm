@@ -82,3 +82,64 @@ test("favorites belong to each user and filter before pagination", async () => {
 	);
 	expect(all.rows.find((row) => row.id === first)?.isFavorite).toBe(false);
 });
+
+test("organization owner changes propagate to linked inbound users, including clearing and bulk assignment", async () => {
+	const contact = await db.contact.create({
+		data: { firstName: "Owner propagation", companyId: first, ownerId: bob },
+	});
+	const external = `${prefix}-secondary`;
+	await db.importedRecord.createMany({
+		data: [
+			{
+				source: "cloud",
+				kind: "company",
+				externalId: external,
+				recordId: second,
+			},
+			{
+				source: "cloud",
+				kind: "contact",
+				externalId: `${prefix}-member`,
+				recordId: contact.id,
+			},
+			{
+				source: "cloud",
+				kind: "deal",
+				externalId: `${external}:${prefix}-member`,
+				recordId: "membership",
+			},
+		],
+	});
+	try {
+		await companies.update(second, { ownerId: alice });
+		expect(
+			(await db.contact.findUniqueOrThrow({ where: { id: contact.id } }))
+				.ownerId,
+		).toBe(alice);
+		await companies.update(second, { ownerId: "" });
+		expect(
+			(await db.contact.findUniqueOrThrow({ where: { id: contact.id } }))
+				.ownerId,
+		).toBeNull();
+		await companies.bulkAssignOwner({ ids: [first, second], ownerId: bob });
+		expect(
+			(await db.contact.findUniqueOrThrow({ where: { id: contact.id } }))
+				.ownerId,
+		).toBe(bob);
+		await expect(
+			companies.update(first, { ownerId: "missing-user" }),
+		).rejects.toThrow();
+		expect(
+			(await db.company.findUniqueOrThrow({ where: { id: first } })).ownerId,
+		).toBe(bob);
+		expect(
+			(await db.contact.findUniqueOrThrow({ where: { id: contact.id } }))
+				.ownerId,
+		).toBe(bob);
+	} finally {
+		await db.importedRecord.deleteMany({
+			where: { externalId: { startsWith: prefix } },
+		});
+		await db.contact.delete({ where: { id: contact.id } });
+	}
+});

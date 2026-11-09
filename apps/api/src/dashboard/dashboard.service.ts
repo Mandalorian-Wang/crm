@@ -7,11 +7,15 @@ import {
 	cloudOverviewKey,
 	previousShanghaiDay,
 } from "@crm/validation/cloud-overview";
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { z } from "zod";
 import { toCents } from "../crm/values";
 import { ConversionService } from "../currency/conversion.service";
 import { InjectDatabase } from "../database/database.constants";
-import type { DashboardSummaryInput } from "./dashboard.contracts";
+import type {
+	cloudOrganizationsInput,
+	DashboardSummaryInput,
+} from "./dashboard.contracts";
 
 const OWNER_SELECT = {
 	id: true,
@@ -42,6 +46,58 @@ export class DashboardService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly conversion: ConversionService,
 	) {}
+
+	async cloudOrganizations(input: z.infer<typeof cloudOrganizationsInput>) {
+		const report = await this.db.cloudDailyOverview.findUnique({
+			where: { date: cloudOverviewKey(input.date, input.days) },
+		});
+		if (!report)
+			throw new NotFoundException("This reporting window has not synced yet.");
+		const entries = Object.entries(cloudOverviewEvidence.parse(report.evidence))
+			.filter(
+				([, entry]) =>
+					input.scope === "all" ||
+					(input.scope === "active"
+						? entry.createdBox === true
+						: input.scope === "inactive"
+							? entry.createdBox === false
+							: entry.createdBox === null),
+			)
+			.sort(([a], [b]) => a.localeCompare(b));
+		const page = entries.slice(
+			(input.page - 1) * CLOUD_DASHBOARD.pageSize,
+			input.page * CLOUD_DASHBOARD.pageSize,
+		);
+		const refs = await this.db.importedRecord.findMany({
+			where: {
+				source: "cloud",
+				kind: "company",
+				externalId: { in: page.map(([id]) => id) },
+			},
+			select: { recordId: true, externalId: true },
+		});
+		const companies = await this.db.company.findMany({
+			where: { id: { in: refs.map((ref) => ref.recordId) } },
+			select: { id: true, name: true, email: true },
+		});
+		const byId = new Map(companies.map((company) => [company.id, company]));
+		const linked = new Map(
+			refs.map((ref) => [ref.externalId, byId.get(ref.recordId)]),
+		);
+		return {
+			total: entries.length,
+			page: input.page,
+			pageSize: CLOUD_DASHBOARD.pageSize,
+			rows: page.map(([externalId, entry]) => ({
+				externalId,
+				id: linked.get(externalId)?.id ?? null,
+				name: linked.get(externalId)?.name ?? "Organization sync pending",
+				email: linked.get(externalId)?.email ?? null,
+				createdAt: entry.createdAt,
+				createdBox: entry.createdBox,
+			})),
+		};
+	}
 
 	async cloudOverview(page: number, now = new Date(), days: 1 | 7 | 15 = 1) {
 		const { start, end, date } = previousShanghaiDay(now, days);

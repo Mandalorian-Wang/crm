@@ -208,3 +208,23 @@ Billing windows retain their original UTC boundaries in storage. The UI converts
 The header's **Submit request** form uses English labels and messages. Signed-in users can attach up to three PNG, JPEG, GIF or WebP images, each at most 2 MB. The API validates the payload, uploads the images to Linear's private storage, and embeds the resulting URLs in the issue description. The configured project, team and CRM label stay server-controlled.
 
 The API key stays on the server. Image previews and failed submissions remain in the open page's draft; refreshing the page clears that draft. Retrying an unchanged successful submission returns the existing issue. Nginx allows a 20 MB body and a 300-second upstream response wait for image submissions. Deploy the updated Nginx configuration and reload Nginx when upgrading.
+
+## Organization workspace improvements
+
+Apply the `20261109180000_crm_experience` migration before restarting the API. Back up the database first, run `bun run db:generate`, and run `bun run --filter=@crm/db db:deploy` with the production root environment. Run automated tests only against the separate `crm_test` database. Build the web app and restart the API, web app and sync worker. Do not revoke user sessions during routine upgrades.
+
+**Daily note** supports multiple appended notes per organization. All signed-in CRM users can edit today's notes. The server assigns creation times and records the latest editor and update time. Notes freeze at midnight in Asia/Shanghai, based on their original creation day. The database update statement enforces the day boundary and optimistic version checks. No client-supplied date can extend the editing window. Retrying an append uses a stable request ID to avoid duplicate entries. Notes appear newest first; there is no delete action.
+
+Bound Linear customers appear as a compact link. **Manage connection** expands the search, replacement and unlink controls. Issues support Open, All and Completed views. Existing issues can be attached through Linear Customer requests. **Create issue** accepts a project/team, content and images; it includes the organization and CRM backlink, then creates the Customer request relationship. Retrying an unchanged submission recovers the created issue and retries the relationship. The shared API key must see the destination team. Header CRM requests still use the fixed server-configured CRM project and label.
+
+Organization details group Cloud data, billing and relationship fields. Sync status distinguishes missing data from zero. Memberships include secondary Cloud organizations. Follow-up status, next date and contact logs are manually maintained and are not overwritten by imports. Bulk follow-up reports partial failures and retries only failed records.
+
+Saved views include filters, sorting, column visibility and order. Owners can update, rename and share views. Each user can select an independent default; inaccessible or deleted defaults are ignored. Default views do not override explicit URL filters. Quick views include owned organizations, favorites, recent registrations, settled usage and due follow-ups. Cloud overview drill-down uses the same persisted cohort and activation evidence as the displayed metric; unknown activation remains distinct from confirmed inactivity.
+
+### Team mentions and compact organization UI
+
+Apply `20261109230000_daily_note_mentions` after the experience migration. Daily note mentions use CRM user IDs and names, from the same CRM user directory as owner assignment. Typing `@` searches names and emails; arrow keys and Enter select a member. Edits preserve mention references until their text is changed. Notes store references without sending notifications. Activity and Agent tabs are hidden on organization sheets. Cloud/Billing headings expose sync timestamps on hover.
+
+The organization toolbar's **Assignee** selector supports multiple CRM team members, Me, Unassigned and All. It uses the existing owner URL filter and combines with other filters. Changing an organization owner, including bulk assignment and clearing it, updates all active linked inbound users in the same transaction. A user linked to multiple organizations inherits the most recent explicit owner assignment. Cloud imports preserve existing owner values.
+
+The overview uses two clickable metric cards for new organizations and Box activation, with window/sync details in a tooltip. The cohort dialog contains activation status filters. Unknown activation stays visible as an unconfirmed count and a lower-bound percentage, without separate action buttons beneath the cards.

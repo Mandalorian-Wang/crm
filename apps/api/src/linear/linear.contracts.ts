@@ -12,7 +12,7 @@ export const linearIssue = z.object({
 	title: z.string(),
 	url: z.url(),
 	priorityLabel: z.string(),
-	state: z.object({ name: z.string() }).nullable(),
+	state: z.object({ name: z.string(), type: z.string().optional() }).nullable(),
 	assignee: z.object({ name: z.string() }).nullable(),
 	updatedAt: z.string(),
 });
@@ -58,4 +58,29 @@ export const linearRequestOutput = z.object({
 	id: z.string(),
 	identifier: z.string(),
 	url: z.url(),
+});
+
+export const linearProject = z.object({
+	id: z.string(),
+	name: z.string(),
+	url: z.url(),
+	teams: z.object({
+		nodes: z.array(z.object({ id: z.string(), name: z.string() })),
+	}),
+});
+export const linearProjectsOutput = z.array(linearProject);
+export const linearLinkIssueInput = linearCompanyInput.extend({
+	reference: z.string().trim().min(1).max(1000),
+});
+export const linearCustomerIssueInput = linearRequestInput.extend({
+	companyId: z.string(),
+	projectId: z.uuid(),
+	teamId: z.uuid(),
+});
+
+export const linearProjectsPage = z.object({
+	projects: z.object({
+		nodes: z.array(linearProject),
+		pageInfo: linearPageInfo,
+	}),
 });

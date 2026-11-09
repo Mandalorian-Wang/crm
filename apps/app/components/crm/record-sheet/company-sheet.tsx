@@ -23,7 +23,6 @@ import {
 } from "@crm/ui/components/tooltip";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AgentPanel } from "@/components/crm/agent-panel";
 import { FieldsCog, RecordFields } from "@/components/crm/fields/record-fields";
 import {
 	InlineField,
@@ -33,7 +32,6 @@ import {
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { CompanySocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
-import { Timeline } from "@/components/crm/timeline/timeline";
 import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
@@ -53,17 +51,18 @@ import { hasCompanyLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import {
+	CompanyCloudInfo,
+	CopyValue,
+	membershipMessage,
+} from "./company-cloud-info";
+import { CompanyDailyNotes } from "./company-daily-notes";
+import { CompanyFollowUp } from "./company-follow-up";
 import { CompanyLinear } from "./company-linear";
 import { QuickAddContact, QuickAddDeal } from "./quick-add";
 import { RecordActions } from "./record-actions";
 import { RecordLink } from "./record-link";
-import {
-	AddRow,
-	DealAmount,
-	DomainLink,
-	MetaLine,
-	RecordSheetFrame,
-} from "./record-parts";
+import { AddRow, DealAmount, RecordSheetFrame } from "./record-parts";
 import { useOpenRecord, useRecordSheetView } from "./record-stack";
 
 type Company = RouterOutputs["companies"]["byId"];
@@ -145,12 +144,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 
 	const company = query.data;
 
-	const location = company
-		? [company.city, company.stateCode, company.country]
-				.filter(Boolean)
-				.join(", ")
-		: null;
-
 	const tabs: DetailSheetTab[] = company
 		? [
 				{
@@ -172,6 +165,23 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					),
 				},
 				{
+					value: "daily-note",
+					label: "Daily note",
+					content: (
+						<CompanyDailyNotes key={company.id} companyId={company.id} />
+					),
+				},
+				{
+					value: "follow-up",
+					label: "Follow-up",
+					content: (
+						<CompanyFollowUp
+							companyId={company.id}
+							contacts={company.contacts}
+						/>
+					),
+				},
+				{
 					value: "linear",
 					label: "Linear issue",
 					content: <CompanyLinear key={company.id} companyId={company.id} />,
@@ -189,17 +199,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 						/>
 					),
 				},
-				{
-					value: "activity",
-					label: "Activity",
-					content: <Timeline anchor={{ companyId: company.id }} />,
-				},
-				{
-					value: "agent",
-					label: "Agent",
-					content: <AgentPanel record={{ kind: "company", id: company.id }} />,
-					keepMounted: true,
-				},
 			]
 		: [];
 
@@ -210,12 +209,18 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 			title={company?.name ?? "Company"}
 			description={
 				company ? (
-					<MetaLine
-						lead={
-							<DomainLink domain={company.domain} website={company.website} />
-						}
-						parts={[location, company.industry]}
-					/>
+					<div className="flex flex-col gap-1">
+						{company.email ? (
+							<CopyValue value={company.email} label="Registration email" />
+						) : null}
+						<CopyValue
+							value={String(
+								company.fields.find((f) => f.key === "cloud_organization_id")
+									?.value ?? company.id,
+							)}
+							label="Organization ID"
+						/>
+					</div>
 				) : undefined
 			}
 			media={
@@ -284,7 +289,7 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 				) : null
 			}
 			tabs={tabs}
-			tab={tab}
+			tab={tabs.some((item) => item.value === tab) ? tab : "overview"}
 			onTabChange={setTab}
 		/>
 	);
@@ -315,6 +320,7 @@ function CompanyOverview({ company }: { company: Company }) {
 	return (
 		<DetailSheetBody>
 			<DetailSheetMain>
+				<CompanyCloudInfo fields={company.fields} />
 				{company.description ? (
 					<DetailSheetSection title="About">
 						<DetailSheetProse>{company.description}</DetailSheetProse>
@@ -322,7 +328,7 @@ function CompanyOverview({ company }: { company: Company }) {
 				) : null}
 
 				<DetailSheetSection
-					title="Details"
+					title="Account & relationships"
 					action={<FieldsCog kind="company" />}
 				>
 					<DetailSheetProperties columns={2}>
@@ -389,21 +395,15 @@ function CompanyOverview({ company }: { company: Company }) {
 							}
 						/>
 						<RecordFields
-							fields={company.fields}
+							fields={company.fields.filter(
+								(field) => !field.key.startsWith("cloud_"),
+							)}
 							saving={isSavingField}
 							onSave={saveFields}
 						/>
 					</DetailSheetProperties>
 				</DetailSheetSection>
 
-				<DetailSheetSection title="Billing & subscriptions">
-					<DetailSheetProse>
-						Settled usage is month-to-date consumption, not a wallet balance.
-						Settlement can be delayed; these totals are not complete real-time
-						usage. Balance and subscription orders are not available from the
-						connected data source. Cloud signup deals are registration records.
-					</DetailSheetProse>
-				</DetailSheetSection>
 				<WebsiteActivity companyId={company.id} />
 				{hasCompanyLinks(company) ? (
 					<DetailSheetSection title="Links">
@@ -453,15 +453,10 @@ function CompanyContacts({
 					<DetailSheetEmpty
 						icon={UserMultiple}
 						title="No inbound users linked yet"
-						description={
-							Number(
-								company.fields.find(
-									(field) => field.key === "cloud_member_count",
-								)?.value ?? 0,
-							) > 0
-								? "Cloud reports members for this organization. Their inbound user records have not finished syncing yet."
-								: "Add an inbound user to link their profile and activity to this organization."
-						}
+						description={membershipMessage(
+							company.fields,
+							company.contacts.length,
+						)}
 						action={
 							<Button variant="outline" size="sm" onClick={onAdd}>
 								<Icon icon={Add} data-icon="inline-start" />
@@ -477,6 +472,9 @@ function CompanyContacts({
 	return (
 		<>
 			{form}
+			<DetailSheetProse>
+				{membershipMessage(company.fields, company.contacts.length)}
+			</DetailSheetProse>
 			<SimpleTable variant="panel" columns={CONTACT_COLUMNS}>
 				{company.contacts.map((contact) => {
 					const isPrimary = contact.id === company.primaryContactId;

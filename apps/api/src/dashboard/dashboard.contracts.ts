@@ -146,3 +146,25 @@ export const cloudDashboardOutput = z.object({
 		}),
 	),
 });
+
+export const cloudOrganizationsInput = z.object({
+	date: z.iso.date(),
+	days: cloudWindowDays,
+	scope: z.enum(["all", "active", "inactive", "unknown"]).default("all"),
+	page: z.number().int().min(1).max(100000).default(1),
+});
+export const cloudOrganizationsOutput = z.object({
+	total: z.number(),
+	page: z.number(),
+	pageSize: z.number(),
+	rows: z.array(
+		z.object({
+			externalId: z.string(),
+			id: z.string().nullable(),
+			name: z.string(),
+			email: z.string().nullable(),
+			createdAt: z.string(),
+			createdBox: z.boolean().nullable(),
+		}),
+	),
+});

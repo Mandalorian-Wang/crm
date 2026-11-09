@@ -19,7 +19,8 @@
 		"./field-backfill": "./src/field-backfill.ts",
 		"./field-templates": "./src/field-templates.ts",
 		"./saved-view": "./src/saved-view.ts",
-		"./crm-request": "./src/crm-request.ts"
+		"./crm-request": "./src/crm-request.ts",
+		"./daily-note": "./src/daily-note.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",

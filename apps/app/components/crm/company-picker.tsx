@@ -52,7 +52,7 @@ export function CompanyPicker({
 	const matches: ComboboxOption[] = (companies.data ?? []).map((company) => ({
 		value: company.id,
 		label: company.name,
-		hint: company.domain ?? undefined,
+		hint: company.email ?? company.domain ?? company.id.slice(-8),
 		keywords: company.domain ? [company.domain] : undefined,
 	}));
 

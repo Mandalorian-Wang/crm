@@ -2,6 +2,8 @@ import { z } from "zod";
 import { parse } from "./index";
 
 export const savedViewFilters = z.object({
+	hiddenColumns: z.array(z.string().max(200)).max(300).optional(),
+	columnOrder: z.array(z.string().max(200)).max(300).optional(),
 	q: z.string().default(""),
 	sort: z.string().default(""),
 	dir: z.enum(["asc", "desc"]).default("asc"),

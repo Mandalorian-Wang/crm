@@ -98,3 +98,11 @@ function StatCard({
 
 export type { StatDelta, TrendDirection };
 export { StatCard, StatDeltaText };
+
+export function MetricCard({label,value,description,...props}: Omit<React.ComponentProps<"button">,"children"> & {label:string;value:React.ReactNode;description:React.ReactNode}) {
+ return <button type="button" {...props} className="flex min-w-0 flex-col items-start gap-2 rounded-lg border bg-card p-5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-60">
+ <span className="text-sm text-muted-foreground">{label}</span>
+ <span className="text-3xl font-medium tracking-tight tabular-nums">{value}</span>
+ <span className="text-xs text-muted-foreground">{description}</span>
+ </button>;
+}

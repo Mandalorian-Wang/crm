@@ -28,6 +28,7 @@ export type CrmCache = {
 	deal(id?: string, options?: Options): Promise<void>;
 	fields(entity?: RecordKind, options?: Options): Promise<void>;
 	fieldCoverage(id?: string, options?: Options): Promise<void>;
+	followUp(companyId?: string): Promise<void>;
 	savedViews(entity?: RecordKind, options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
@@ -126,6 +127,15 @@ export function useCrmCache(): CrmCache {
 	} as const;
 
 	return {
+		followUp: (id) =>
+			run(
+				[
+					trpc.companies.followUp.queryKey(id ? { id } : undefined),
+					trpc.companies.list.queryKey(),
+					trpc.companies.byId.queryKey(),
+				],
+				[],
+			),
 		fields: (entity, options) =>
 			run(
 				[
@@ -151,18 +161,8 @@ export function useCrmCache(): CrmCache {
 				options,
 			),
 
-		savedViews: (entity, options) =>
-			run(
-				[
-					entity
-						? trpc.savedViews.list.queryKey({
-								entity: ENTITY_FOR[entity],
-							})
-						: trpc.savedViews.list.queryKey(),
-				],
-				[],
-				options,
-			),
+		savedViews: (_entity, options) =>
+			run([trpc.savedViews.pathKey()], [], options),
 
 		linear: (companyId) =>
 			run(

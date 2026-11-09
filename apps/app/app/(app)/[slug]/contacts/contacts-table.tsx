@@ -274,7 +274,11 @@ export function ContactsTable() {
 			actions={
 				<>
 					<AssignedToMe query={query} onChange={selection.clear} />
-					<SavedViewsMenu entity="CONTACT" table={table} />
+					<SavedViewsMenu
+						entity="CONTACT"
+						table={table}
+						columnPreferences={columnPreferences}
+					/>
 					<Button
 						variant={input.archived ? "contrast" : "outline"}
 						size="sm"

@@ -22,9 +22,10 @@ import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
 import { useFieldFacets } from "@/components/crm/fields/field-facets";
 import { OwnerCell } from "@/components/crm/owner-cell";
+import { FOLLOW_UP_LABELS } from "@/components/crm/record-sheet/company-follow-up";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
-import { AssignedToMe } from "@/components/data-table/assigned-to-me";
+import { AssigneeFilter } from "@/components/data-table/assignee-filter";
 import { ListSearch } from "@/components/data-table/list-search";
 import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
 import { useColumnPreferences } from "@/components/data-table/use-column-preferences";
@@ -45,6 +46,22 @@ type CompanyRow = RouterOutputs["companies"]["list"]["rows"][number];
 
 const COLUMNS: DataTableColumn<CompanyRow>[] = [
 	{
+		id: "followUpStatus",
+		header: "Follow-up",
+		sortable: true,
+		width: "w-[12%]",
+		cell: (row) =>
+			FOLLOW_UP_LABELS[row.followUpStatus as keyof typeof FOLLOW_UP_LABELS] ??
+			row.followUpStatus,
+	},
+	{
+		id: "nextFollowUp",
+		header: "Next follow-up",
+		sortable: true,
+		width: "w-[12%]",
+		cell: (row) => row.nextFollowUp ?? "—",
+	},
+	{
 		id: "name",
 		header: "Cloud organization",
 		sortable: true,
@@ -59,7 +76,17 @@ const COLUMNS: DataTableColumn<CompanyRow>[] = [
 					name={row.name}
 					size="sm"
 				/>
-				<span className="truncate font-medium">{row.name}</span>
+				<span className="flex min-w-0 flex-col">
+					<span className="truncate font-medium">{row.name}</span>
+					<span
+						className="truncate text-xs text-muted-foreground"
+						title={
+							row.email ?? String(row.fields.cloud_organization_id ?? row.id)
+						}
+					>
+						{row.email ?? String(row.fields.cloud_organization_id ?? row.id)}
+					</span>
+				</span>
 			</span>
 		),
 	},
@@ -191,6 +218,23 @@ export function CompaniesTable() {
 
 	const facets: DataTableFacet[] = [
 		{
+			id: "followUpStatus",
+			label: "Follow-up status",
+			options: Object.entries(FOLLOW_UP_LABELS).map(([value, label]) => ({
+				value,
+				label,
+			})),
+		},
+		{
+			id: "followUpDue",
+			label: "Follow-up due",
+			options: [
+				{ value: "due", label: "Due today or overdue" },
+				{ value: "overdue", label: "Overdue" },
+				{ value: "unscheduled", label: "Not scheduled" },
+			],
+		},
+		{
 			id: "owner",
 			label: "Owner",
 			options: [
@@ -256,10 +300,12 @@ export function CompaniesTable() {
 		<DataTable
 			columnPreferences={columnPreferences}
 			query={query}
-			search={<ListSearch placeholder="Search companies by name or domain…" />}
+			search={
+				<ListSearch placeholder="Search name, email or Cloud organization ID…" />
+			}
 			actions={
 				<>
-					<AssignedToMe query={query} onChange={selection.clear} />
+					<AssigneeFilter query={query} onChange={selection.clear} />
 					<Button
 						variant={query.tab === "mine" ? "contrast" : "outline"}
 						size="sm"
@@ -272,7 +318,11 @@ export function CompaniesTable() {
 						<Star data-icon="inline-start" />
 						My favorites
 					</Button>
-					<SavedViewsMenu entity="COMPANY" table={table} />
+					<SavedViewsMenu
+						entity="COMPANY"
+						table={table}
+						columnPreferences={columnPreferences}
+					/>
 					<Button
 						variant={input.archived ? "contrast" : "outline"}
 						size="sm"

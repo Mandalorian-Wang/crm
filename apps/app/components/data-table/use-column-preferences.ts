@@ -16,6 +16,10 @@ export function useColumnPreferences(table: "companies" | "contacts") {
 				await client.cancelQueries({ queryKey: options.queryKey });
 				client.setQueryData(options.queryKey, {
 					hiddenColumns: input.hiddenColumns,
+					columnOrder:
+						input.columnOrder ??
+						client.getQueryData(options.queryKey)?.columnOrder ??
+						[],
 				});
 			},
 			onError: () =>
@@ -29,7 +33,16 @@ export function useColumnPreferences(table: "companies" | "contacts") {
 	});
 	return {
 		hiddenColumns: query.data?.hiddenColumns ?? null,
+		columnOrder: query.data?.columnOrder ?? [],
 		loading: query.isPending || query.isError,
+		onOrderChange: (columnOrder: string[]) =>
+			save.mutate({
+				table,
+				hiddenColumns: query.data?.hiddenColumns ?? [],
+				columnOrder,
+			}),
+		apply: (hiddenColumns: string[], columnOrder: string[]) =>
+			save.mutate({ table, hiddenColumns, columnOrder }),
 		onChange: (hiddenColumns: string[]) =>
 			save.mutate({ table, hiddenColumns }),
 	};

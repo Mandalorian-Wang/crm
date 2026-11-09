@@ -167,6 +167,7 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 		};
 
 		for (const id of facetIds ?? []) update[id] = [];
+		if (tabId) update[tabId] = "all";
 
 		const nextFields: FieldFilters = {};
 		for (const [key, selected] of Object.entries(view.filters)) {

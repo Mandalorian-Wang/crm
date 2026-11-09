@@ -107,6 +107,8 @@ export type DataTableProps<TRow, TSub> = {
 	query: TableQueryState;
 	columnPreferences?: {
 		hiddenColumns: string[] | null;
+ columnOrder?: string[];
+ onOrderChange?: (order:string[])=>void;
 		loading: boolean;
 		onChange: (hidden: string[]) => void;
 	};
@@ -318,8 +320,9 @@ export function DataTable<TRow, TSub = unknown>({
 	const [filtersOpen, setFiltersOpen] = useState(false);
 	const filtersId = useId();
 
-	const hideable = columns.filter((column) => column.hideable !== false);
-	const visibleColumns = columns.filter(
+	const orderedColumns = [...columns].sort((a,b)=>{const order=columnPreferences?.columnOrder ?? [];const ai=order.indexOf(a.id),bi=order.indexOf(b.id);return (ai<0?order.length:ai)-(bi<0?order.length:bi);});
+ const hideable = orderedColumns.filter((column) => column.hideable !== false);
+	const visibleColumns = orderedColumns.filter(
 		(column) => column.hideable === false || !hidden.includes(column.id),
 	);
 	const sortableColumns = columns.filter((column) => column.sortable);
@@ -566,6 +569,7 @@ export function DataTable<TRow, TSub = unknown>({
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="min-w-48">
 									<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+ {columnPreferences?.onOrderChange ? <DropdownMenuSub><DropdownMenuSubTrigger>Move a column first</DropdownMenuSubTrigger><DropdownMenuSubContent>{orderedColumns.map((column)=><DropdownMenuItem key={column.id} onSelect={()=>columnPreferences.onOrderChange?.([column.id,...orderedColumns.map((item)=>item.id).filter((id)=>id!==column.id)])}>{columnLabel(column)}</DropdownMenuItem>)}</DropdownMenuSubContent></DropdownMenuSub> : null}
 									{hideable.map((column) => (
 										<DropdownMenuCheckboxItem
 											key={column.id}

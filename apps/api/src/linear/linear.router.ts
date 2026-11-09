@@ -14,9 +14,12 @@ import {
 	linearBindingInput,
 	linearBindingOutput,
 	linearCompanyInput,
+	linearCustomerIssueInput,
 	linearCustomersInput,
 	linearCustomersOutput,
 	linearIssuesOutput,
+	linearLinkIssueInput,
+	linearProjectsOutput,
 	linearRequestInput,
 	linearRequestOutput,
 } from "./linear.contracts";
@@ -26,6 +29,22 @@ import { LinearService } from "./linear.service";
 @UseMiddlewares(AuthMiddleware)
 export class LinearRouter {
 	constructor(@Inject(LinearService) private readonly linear: LinearService) {}
+	@Query({ output: linearProjectsOutput })
+	projects() {
+		return this.linear.projects();
+	}
+	@Mutation({ input: linearLinkIssueInput, output: linearRequestOutput })
+	linkIssue(@Input() input: z.infer<typeof linearLinkIssueInput>) {
+		return this.linear.linkIssue(input.companyId, input.reference);
+	}
+	@Mutation({ input: linearCustomerIssueInput, output: linearRequestOutput })
+	createCustomerIssue(
+		@Input() input: z.infer<typeof linearCustomerIssueInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.linear.createCustomerIssue(input, ctx.user);
+	}
+
 	@Mutation({ input: linearRequestInput, output: linearRequestOutput })
 	submitRequest(
 		@Input() input: z.infer<typeof linearRequestInput>,

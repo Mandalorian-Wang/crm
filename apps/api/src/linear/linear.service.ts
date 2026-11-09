@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Db } from "@crm/db";
 import {
 	BadGatewayException,
+	BadRequestException,
 	Injectable,
 	NotFoundException,
 	ServiceUnavailableException,
@@ -10,9 +11,12 @@ import { z } from "zod";
 import { InjectDatabase } from "../database/database.constants";
 import {
 	linearCustomer,
+	linearCustomerIssueInput,
 	linearCustomersOutput,
 	linearIssue,
 	linearNeedsOutput,
+	linearProject,
+	linearProjectsPage,
 	linearRequestInput,
 	linearRequestOutput,
 } from "./linear.contracts";
@@ -27,11 +31,13 @@ export class LinearService {
 	async submitRequest(
 		input: z.infer<typeof linearRequestInput>,
 		user: { id: string; name: string; email: string },
+		destination?: { projectId: string; teamId: string },
 	) {
-		const projectId = process.env.LINEAR_CRM_PROJECT_ID;
-		const teamId = process.env.LINEAR_CRM_TEAM_ID;
+		const projectId =
+			destination?.projectId ?? process.env.LINEAR_CRM_PROJECT_ID;
+		const teamId = destination?.teamId ?? process.env.LINEAR_CRM_TEAM_ID;
 		const labelId = process.env.LINEAR_CRM_LABEL_ID;
-		if (!projectId || !teamId || !labelId)
+		if (!projectId || !teamId || (!destination && !labelId))
 			throw new ServiceUnavailableException(
 				"Request submission is not configured.",
 			);
@@ -42,6 +48,7 @@ export class LinearService {
 					input.requestId,
 					input.title,
 					input.content,
+					...(destination ? [destination.projectId, destination.teamId] : []),
 					...(input.images?.length ? [input.images] : []),
 				]),
 			)
@@ -68,7 +75,7 @@ export class LinearService {
 						description: `${input.content}${attachments ? `\n\n${attachments}` : ""}\n\n---\nSubmitted from BoxLite CRM by ${user.name} (${user.email}).`,
 						projectId,
 						teamId,
-						labelIds: [labelId],
+						labelIds: !destination && labelId ? [labelId] : [],
 					},
 				},
 				z.object({
@@ -89,6 +96,160 @@ export class LinearService {
 			if (recovered) return recovered;
 			throw error;
 		}
+	}
+
+	async projects() {
+		const projects: z.infer<typeof linearProject>[] = [];
+		let after: string | null = null;
+		for (let page = 0; page < LINEAR.maxPages; page++) {
+			const result: z.infer<typeof linearProjectsPage> = await linearRequest(
+				`query($after:String,$first:Int!){organization{urlKey} projects(first:$first,after:$after){nodes{id name url teams{nodes{id name}}} pageInfo{hasNextPage endCursor}}}`,
+				{ after, first: LINEAR.pageSize },
+				z.object({
+					projects: z.object({
+						nodes: z.array(linearProject),
+						pageInfo: z.object({
+							hasNextPage: z.boolean(),
+							endCursor: z.string().nullable(),
+						}),
+					}),
+				}),
+			);
+			projects.push(...result.projects.nodes);
+			if (!result.projects.pageInfo.hasNextPage) return projects;
+			if (
+				!result.projects.pageInfo.endCursor ||
+				result.projects.pageInfo.endCursor === after
+			)
+				throw new BadGatewayException(
+					"Linear returned an invalid project cursor.",
+				);
+			after = result.projects.pageInfo.endCursor;
+		}
+		throw new BadGatewayException("Too many Linear projects to load.");
+	}
+	private issueReference(reference: string) {
+		if (
+			/^[A-Z][A-Z0-9]*-\d+$/i.test(reference) ||
+			/^[0-9a-f-]{36}$/i.test(reference)
+		)
+			return reference;
+		let url: URL;
+		try {
+			url = new URL(reference);
+		} catch {
+			throw new BadRequestException("Enter a Linear issue URL or identifier.");
+		}
+		const parts = url.pathname.split("/").filter(Boolean);
+		if (
+			url.protocol !== "https:" ||
+			url.hostname !== "linear.app" ||
+			parts[0] !== process.env.LINEAR_WORKSPACE_SLUG ||
+			parts[1] !== "issue" ||
+			!parts[2]
+		)
+			throw new BadRequestException(
+				"Choose an issue from the configured Linear workspace.",
+			);
+		return parts[2];
+	}
+	async linkIssue(companyId: string, reference: string) {
+		const { customer } = await this.binding(companyId);
+		if (!customer)
+			throw new BadRequestException("Link a Linear customer first.");
+		const { issue } = await linearRequest(
+			`query($id:String!){organization{urlKey} issue(id:$id){id identifier url}}`,
+			{ id: this.issueReference(reference) },
+			z.object({ issue: linearRequestOutput }),
+		);
+		const id = this.deterministicId(
+			`customer-request:${customer.id}:${issue.id}`,
+		);
+		const lookup = async () => {
+			const data = await linearRequest(
+				`query($customerId:ID!,$issueId:ID!){organization{urlKey} customerNeeds(filter:{customer:{id:{eq:$customerId}},issue:{id:{eq:$issueId}}},first:1){nodes{id}}}`,
+				{ customerId: customer.id, issueId: issue.id },
+				z.object({
+					customerNeeds: z.object({
+						nodes: z.array(z.object({ id: z.string() })),
+					}),
+				}),
+			);
+			return data.customerNeeds.nodes.length > 0;
+		};
+		if (await lookup()) return issue;
+		try {
+			const result = await linearRequest(
+				`mutation($needInput:CustomerNeedCreateInput!){customerNeedCreate(input:$needInput){success}}`,
+				{
+					needInput: {
+						id,
+						customerId: customer.id,
+						issueId: issue.id,
+						body: "Linked from BoxLite CRM.",
+					},
+				},
+				z.object({ customerNeedCreate: z.object({ success: z.boolean() }) }),
+				true,
+			);
+			if (!result.customerNeedCreate.success)
+				throw new BadGatewayException(
+					"Linear did not confirm the customer link. Please retry.",
+				);
+		} catch (error) {
+			if (!(await lookup())) throw error;
+		}
+		return issue;
+	}
+	private deterministicId(value: string) {
+		const hex = createHash("sha256").update(value).digest("hex");
+		return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+	}
+	async createCustomerIssue(
+		input: z.infer<typeof linearCustomerIssueInput>,
+		user: { id: string; name: string; email: string },
+	) {
+		const { customer } = await this.binding(input.companyId);
+		if (!customer)
+			throw new BadRequestException("Link a Linear customer first.");
+		const project = await linearRequest(
+			`query($id:String!){organization{urlKey} project(id:$id){teams{nodes{id}}}}`,
+			{ id: input.projectId },
+			z.object({
+				project: z.object({
+					teams: z.object({ nodes: z.array(z.object({ id: z.string() })) }),
+				}),
+			}),
+		);
+		if (!project.project.teams.nodes.some((team) => team.id === input.teamId))
+			throw new BadRequestException("Choose a team assigned to this project.");
+		const company = await this.db.company.findUniqueOrThrow({
+			where: { id: input.companyId },
+			select: { name: true },
+		});
+		const external = await this.db.fieldValue.findFirst({
+			where: {
+				companyId: input.companyId,
+				field: { key: "cloud_organization_id", entity: "COMPANY" },
+			},
+			select: { text: true },
+		});
+		const base = (process.env.APP_URL ?? "").split(",")[0];
+		const url = new URL("/companies", base);
+		url.searchParams.set("record", `company:${input.companyId}`);
+		const content = `${input.content}\n\nOrganization: ${company.name}\nCloud organization ID: ${external?.text ?? "Unavailable"}\nCRM: ${url.href}`;
+		const issue = await this.submitRequest({ ...input, content }, user, {
+			projectId: input.projectId,
+			teamId: input.teamId,
+		});
+		try {
+			await this.linkIssue(input.companyId, issue.id);
+		} catch {
+			throw new BadGatewayException(
+				`Issue ${issue.identifier} was created, but the customer link failed. Retry without changing the form to finish linking.`,
+			);
+		}
+		return issue;
 	}
 
 	private async company(companyId: string) {
@@ -199,7 +360,7 @@ export class LinearService {
 		const seen = new Set<string>();
 		for (let page = 0; page < LINEAR.maxPages; page++) {
 			const data: z.infer<typeof linearNeedsOutput> = await linearRequest(
-				`query CustomerIssues($id: ID!, $after: String, $first: Int!) { organization { urlKey } customerNeeds(filter: {customer: {id: {eq: $id}}}, first: $first, after: $after) { nodes { issue { id identifier title url priorityLabel state { name } assignee { name } updatedAt } } pageInfo { hasNextPage endCursor } } }`,
+				`query CustomerIssues($id: ID!, $after: String, $first: Int!) { organization { urlKey } customerNeeds(filter: {customer: {id: {eq: $id}}}, first: $first, after: $after) { nodes { issue { id identifier title url priorityLabel state { name type } assignee { name } updatedAt } } pageInfo { hasNextPage endCursor } } }`,
 				{ id: customer.id, after, first: LINEAR.pageSize },
 				linearNeedsOutput,
 			);

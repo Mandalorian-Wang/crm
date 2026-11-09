@@ -7,6 +7,8 @@ import { restMeta } from "../trpc/openapi";
 import {
 	cloudDashboardInput,
 	cloudDashboardOutput,
+	cloudOrganizationsInput,
+	cloudOrganizationsOutput,
 	dashboardSummaryInput,
 	dashboardSummaryOutput,
 } from "./dashboard.contracts";
@@ -18,6 +20,11 @@ export class DashboardRouter {
 	constructor(
 		@Inject(DashboardService) private readonly dashboard: DashboardService,
 	) {}
+
+	@Query({ input: cloudOrganizationsInput, output: cloudOrganizationsOutput })
+	cloudOrganizations(@Input() input: z.infer<typeof cloudOrganizationsInput>) {
+		return this.dashboard.cloudOrganizations(input);
+	}
 
 	@Query({ input: cloudDashboardInput, output: cloudDashboardOutput })
 	async cloudOverview(@Input() input: z.infer<typeof cloudDashboardInput>) {

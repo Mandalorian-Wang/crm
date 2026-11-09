@@ -18,6 +18,7 @@ import {
 	BulkOwnerMenu,
 	reportBulk,
 } from "@/components/crm/bulk-actions";
+import { BulkFollowUp } from "@/components/crm/bulk-follow-up";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -25,7 +26,7 @@ function companies(count: number): string {
 	return formatCount(count, "company", "companies");
 }
 
-export function CompaniesBulkActions({
+function CompanyBulkMenu({
 	ids,
 	onDone,
 	archived,
@@ -158,5 +159,18 @@ export function CompaniesBulkActions({
 				</DropdownMenuItem>
 			</DropdownMenuGroup>
 		</BulkActionsMenu>
+	);
+}
+
+export function CompaniesBulkActions(
+	props: Parameters<typeof CompanyBulkMenu>[0],
+) {
+	return (
+		<>
+			{!props.archived ? (
+				<BulkFollowUp ids={props.ids} onDone={props.onDone} />
+			) : null}
+			<CompanyBulkMenu {...props} />
+		</>
 	);
 }

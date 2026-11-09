@@ -13,6 +13,9 @@ generator client {
 }
 
 model User {
+ viewDefaults UserViewDefault[]
+ dailyNotes OrganizationDailyNote[]
+ contactLogs OrganizationContactLog[]
   tablePreferences UserTablePreference[]
   companyFavorites CompanyFavorite[]
   id            String    @id
@@ -409,6 +412,10 @@ enum AgentResponseRating {
 }
 
 model Company {
+ followUpStatus String @default("NOT_CONTACTED")
+ nextFollowUpAt DateTime? @db.Date
+ dailyNotes OrganizationDailyNote[]
+ contactLogs OrganizationContactLog[]
   favorites CompanyFavorite[]
   id          String  @id @default(cuid())
   name        String
@@ -464,6 +471,7 @@ model Company {
   updatedAt      DateTime            @updatedAt
 
   @@unique([domain], map: "company_domain_active_key", where: { archivedAt: null })
+  @@index([followUpStatus,nextFollowUpAt])
   @@index([ownerId])
   @@index([name])
   @@index([lastActivityAt])
@@ -1752,6 +1760,7 @@ model ImportRun {
 model UserTablePreference {
  userId String
  table String
+ columnOrder String[] @default([])
  hiddenColumns String[]
  updatedAt DateTime @updatedAt
  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1774,4 +1783,42 @@ model CloudDailyOverview {
  evidence Json
  syncedAt DateTime @updatedAt
  @@map("cloudDailyOverview")
+}
+
+model UserViewDefault {
+ userId String
+ entity FieldEntity
+ viewId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@id([userId,entity])
+ @@map("userViewDefault")
+}
+model OrganizationContactLog {
+ id String @id @default(cuid())
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ createdById String
+ createdBy User @relation(fields:[createdById],references:[id])
+ contactId String?
+ channel String
+ body String
+ occurredAt DateTime
+ createdAt DateTime @default(now())
+ @@index([companyId,occurredAt])
+ @@map("organizationContactLog")
+}
+
+model OrganizationDailyNote {
+ id String @id
+ companyId String
+ company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+ mentions Json @default("[]")
+ body String
+ updatedById String
+ updatedBy User @relation(fields:[updatedById],references:[id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @default(now()) @updatedAt
+ version Int @default(1)
+ @@index([companyId,createdAt])
+ @@map("organizationDailyNote")
 }

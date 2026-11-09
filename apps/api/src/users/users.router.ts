@@ -28,9 +28,11 @@ const tablePreferenceInput = z.object({
 });
 const tablePreferenceOutput = z.object({
 	hiddenColumns: z.array(z.string()).nullable(),
+	columnOrder: z.array(z.string()),
 });
 const saveTablePreferenceInput = tablePreferenceInput.extend({
 	hiddenColumns: z.array(z.string().max(200)).max(300),
+	columnOrder: z.array(z.string().max(200)).max(300).optional(),
 });
 const favoriteInput = z.object({
 	companyId: z.string(),
@@ -61,6 +63,7 @@ export class UsersRouter {
 			ctx.user.id,
 			input.table,
 			input.hiddenColumns,
+			input.columnOrder,
 		);
 	}
 	@Mutation({

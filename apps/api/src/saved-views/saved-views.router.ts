@@ -13,6 +13,8 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { restMeta } from "../trpc/openapi";
 import {
 	savedViewCreateInput,
+	savedViewDefaultInput,
+	savedViewDefaultOutput,
 	savedViewDeleteOutput,
 	savedViewIdInput,
 	savedViewListInput,
@@ -28,6 +30,21 @@ export class SavedViewsRouter {
 	constructor(
 		@Inject(SavedViewsService) private readonly savedViews: SavedViewsService,
 	) {}
+
+	@Query({ input: savedViewListInput, output: savedViewDefaultOutput })
+	defaultView(
+		@Input() input: z.infer<typeof savedViewListInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.savedViews.defaultView(input.entity, ctx.user.id);
+	}
+	@Mutation({ input: savedViewDefaultInput, output: savedViewDefaultOutput })
+	setDefault(
+		@Input() input: z.infer<typeof savedViewDefaultInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.savedViews.setDefault(input.entity, input.id, ctx.user.id);
+	}
 
 	@Query({
 		input: savedViewListInput,
