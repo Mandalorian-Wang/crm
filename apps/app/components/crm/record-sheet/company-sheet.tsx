@@ -256,7 +256,7 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							{company.fields.find((field) => field.key === "cloud_box_count")
 								?.value ?? "—"}
 						</DetailSheetStat>
-						<DetailSheetStat label="Organization created">
+						<DetailSheetStat label="Registered at">
 							{company.fields.find(
 								(field) => field.key === "cloud_registered_at",
 							)?.value ? (

@@ -93,13 +93,20 @@ export async function syncBilling(): Promise<number> {
 					},
 				});
 			}
-			await setField(tx, "COMPANY", ref.recordId, "cloud_settled_usage_mtd", {
-				text: amounts
-					? [...amounts]
-							.map(([currency, amount]) => moneyFromMinor(currency, amount))
-							.join("; ")
-					: "No settled usage reported",
-			});
+			if (amounts) {
+				await setField(tx, "COMPANY", ref.recordId, "cloud_settled_usage_mtd", {
+					text: [...amounts]
+						.map(([currency, amount]) => moneyFromMinor(currency, amount))
+						.join("; "),
+				});
+			} else {
+				await tx.fieldValue.deleteMany({
+					where: {
+						companyId: ref.recordId,
+						field: { key: "cloud_settled_usage_mtd", entity: "COMPANY" },
+					},
+				});
+			}
 			await setField(tx, "COMPANY", ref.recordId, "cloud_billing_window", {
 				text: `${from.toISOString()} → ${to.toISOString()}`,
 			});

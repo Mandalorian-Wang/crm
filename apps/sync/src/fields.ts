@@ -30,13 +30,7 @@ const FIELDS = [
 	["CONTACT", "github_repository", "GitHub repository", "TEXT", false],
 	["CONTACT", "cloud_joined_at", "Cloud joined at", "DATE", true],
 	["COMPANY", "cloud_organization_id", "Cloud organization ID", "TEXT", true],
-	[
-		"COMPANY",
-		"cloud_registered_at",
-		"Cloud organization created at",
-		"DATE",
-		true,
-	],
+	["COMPANY", "cloud_registered_at", "Registered at", "DATE", true],
 	["COMPANY", "cloud_member_count", "Cloud members", "NUMBER", true],
 	["COMPANY", "cloud_box_count", "Cloud boxes", "NUMBER", true],
 	["DEAL", "cloud_user_id", "Cloud user ID", "TEXT", false],
@@ -49,9 +43,8 @@ export async function ensureFields() {
 		where: {
 			entity: "COMPANY",
 			key: "cloud_registered_at",
-			label: "Cloud registered at",
 		},
-		data: { label: "Cloud organization created at" },
+		data: { label: "Registered at" },
 	});
 	await db.fieldDefinition.updateMany({
 		where: {

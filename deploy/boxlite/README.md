@@ -179,3 +179,9 @@ Yesterday's cohort receives priority detail/member refreshes; `include=activatio
 Complete window usage queries supply positive activity evidence only. Null retained timestamps, missing resource rows and later Box creation cannot prove inactivity. Percentages remain lower bounds while any organization is unconfirmed. Detail and usage failures never become zero activity. The source client spaces requests globally within its process; priority detail requests use at most two concurrent workers.
 
 The organization table removes CRM Created date from its columns and defaults to descending Cloud organization creation time. Internal `createdAt` remains available for persistence and auditing. Existing saved views remain compatible.
+
+## Organization display cleanup and recent memberships
+
+The organization table and Columns menu omit sales opportunity counts. The Cloud registration field displays **Registered at** in the table, filters and details; its stable key remains `cloud_registered_at`. Missing settled usage is stored as a missing value and displays a dash, never zero. The upgrade clears the old `No settled usage reported` placeholder values without changing recorded amounts.
+
+Cloud still imports the organization directory before members. Member processing now traverses the creation-ordered directory in reverse, prioritizing recent organizations while retaining per-day checkpoints. A directory row can exist before its members finish importing. The detail page describes this pending state. A targeted member refresh resolves a specific waiting organization without waiting for historical backfill.

@@ -59,7 +59,7 @@ export async function runSource(
 						if (companyId) pending.push({ customer, companyId });
 					}
 					let failed = 0;
-					for (const { customer, companyId } of pending) {
+					for (const { customer, companyId } of pending.reverse()) {
 						const checkpoint = {
 							source: "cloud",
 							externalId: `${day}:${customer.organizationId}`,
