@@ -143,7 +143,7 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 		<RecordSheetFrame
 			loading={query.isPending}
 			error={query.error?.message ?? null}
-			title={contact ? contactName(contact) : "Contact"}
+			title={contact ? contactName(contact) : "Inbound user"}
 			description={
 				contact ? (
 					<MetaLine parts={[contact.title, contact.company?.name]} />

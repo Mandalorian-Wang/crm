@@ -103,6 +103,11 @@ export type DataTableSelection<TRow> = {
 
 export type DataTableProps<TRow, TSub> = {
 	query: TableQueryState;
+	columnPreferences?: {
+		hiddenColumns: string[] | null;
+		loading: boolean;
+		onChange: (hidden: string[]) => void;
+	};
 	columns: DataTableColumn<TRow>[];
 	getRowId: (row: TRow) => string;
 	rows: TRow[];
@@ -265,6 +270,7 @@ function FacetSubmenu({
 
 export function DataTable<TRow, TSub = unknown>({
 	query,
+	columnPreferences,
 	columns,
 	getRowId,
 	rows,
@@ -294,16 +300,24 @@ export function DataTable<TRow, TSub = unknown>({
 		() => columns.filter((column) => column.defaultHidden).map((c) => c.id),
 		[columns],
 	);
-	const [hidden, setHidden] = useQueryState(
+	const [urlHidden, setUrlHidden] = useQueryState(
 		"hide",
 		parseAsArrayOf(parseAsString).withDefault(defaultHiddenIds),
 	);
+	const hidden = columnPreferences
+		? (columnPreferences.hiddenColumns ?? defaultHiddenIds)
+		: urlHidden;
+	const setHidden = (update: (previous: string[]) => string[]) => {
+		const next = update(hidden);
+		if (columnPreferences) columnPreferences.onChange(next);
+		else void setUrlHidden(next);
+	};
 	const [filtersOpen, setFiltersOpen] = useState(false);
 	const filtersId = useId();
 
 	const hideable = columns.filter((column) => column.hideable !== false);
 	const visibleColumns = columns.filter(
-		(column) => !hidden.includes(column.id),
+		(column) => column.hideable === false || !hidden.includes(column.id),
 	);
 	const sortableColumns = columns.filter((column) => column.sortable);
 
@@ -535,6 +549,7 @@ export function DataTable<TRow, TSub = unknown>({
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button
+										disabled={columnPreferences?.loading}
 										variant="outline"
 										size="sm"
 										className="justify-start sm:justify-center"

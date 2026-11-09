@@ -55,6 +55,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { QuickAddContact, QuickAddDeal } from "./quick-add";
 import { RecordActions } from "./record-actions";
+import { RecordLink } from "./record-link";
 import {
 	AddRow,
 	DealAmount,
@@ -158,7 +159,7 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 				},
 				{
 					value: "contacts",
-					label: "Contacts",
+					label: "Inbound users",
 					count: company.contacts.length,
 					content: (
 						<CompanyContacts
@@ -445,12 +446,20 @@ function CompanyContacts({
 				{adding ? null : (
 					<DetailSheetEmpty
 						icon={UserMultiple}
-						title="No contacts yet"
-						description={`Everyone you talk to at ${company.name} lives here — add the first person and their calls, emails and notes hang off them.`}
+						title="No inbound users linked yet"
+						description={
+							Number(
+								company.fields.find(
+									(field) => field.key === "cloud_member_count",
+								)?.value ?? 0,
+							) > 0
+								? "Cloud reports members for this organization. Their inbound user records have not finished syncing yet."
+								: "Add an inbound user to link their profile and activity to this organization."
+						}
 						action={
 							<Button variant="outline" size="sm" onClick={onAdd}>
 								<Icon icon={Add} data-icon="inline-start" />
-								Add contact
+								Add inbound user
 							</Button>
 						}
 					/>
@@ -508,11 +517,15 @@ function CompanyContacts({
 										email={contact.email}
 										size="sm"
 									/>
-									<span className="truncate">
+									<RecordLink
+										kind="contact"
+										id={contact.id}
+										className="font-medium text-foreground"
+									>
 										{[contact.firstName, contact.lastName]
 											.filter(Boolean)
 											.join(" ")}
-									</span>
+									</RecordLink>
 								</span>
 							</TableCell>
 							<TableCell className="truncate px-3 py-2.5">
@@ -529,7 +542,7 @@ function CompanyContacts({
 				})}
 
 				<AddRow
-					label="Add contact"
+					label="Add inbound user"
 					columns={CONTACT_COLUMNS.length}
 					onClick={onAdd}
 				/>

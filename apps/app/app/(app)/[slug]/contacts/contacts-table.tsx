@@ -22,6 +22,7 @@ import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { ListSearch } from "@/components/data-table/list-search";
 import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
+import { useColumnPreferences } from "@/components/data-table/use-column-preferences";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
@@ -146,6 +147,7 @@ const ARCHIVED_COLUMN: DataTableColumn<ContactRow> = {
 export function ContactsTable() {
 	const openRecord = useOpenRecord();
 	const trpc = useTRPC();
+	const columnPreferences = useColumnPreferences("contacts");
 	const prefetchRecord = usePrefetchRecord();
 	const table = useTableQuery(contactsSearchParams);
 	const { query, input, setArchived } = table;
@@ -265,6 +267,7 @@ export function ContactsTable() {
 
 	return (
 		<DataTable
+			columnPreferences={columnPreferences}
 			query={query}
 			search={<ListSearch placeholder="Search by name, email or company…" />}
 			actions={
@@ -311,8 +314,8 @@ export function ContactsTable() {
 			onRowClick={(row) => openRecord({ kind: "contact", id: row.id })}
 			empty={
 				input.archived
-					? "No archived contacts."
-					: "No contacts match this view."
+					? "No archived inbound users."
+					: "No inbound users match this view."
 			}
 		/>
 	);

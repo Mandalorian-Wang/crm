@@ -93,6 +93,6 @@ export function filterPlacement(entity: FieldEntity): string {
 
 export const ENTITY_TABS = [
 	{ kind: "company", label: "Cloud organizations" },
-	{ kind: "contact", label: "Contacts" },
+	{ kind: "contact", label: "Inbound users" },
 	{ kind: "deal", label: "Deals" },
 ] as const satisfies readonly { kind: RecordKind; label: string }[];

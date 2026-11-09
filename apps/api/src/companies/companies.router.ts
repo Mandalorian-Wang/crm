@@ -44,8 +44,11 @@ export class CompaniesRouter {
 		output: companyListOutput,
 		meta: restMeta("POST", "/companies/search", ["Companies"]),
 	})
-	async list(@Input() input: z.infer<typeof companyListInput>) {
-		return this.companies.list(input);
+	async list(
+		@Input() input: z.infer<typeof companyListInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.companies.list(input, ctx.user.id);
 	}
 
 	@Query({

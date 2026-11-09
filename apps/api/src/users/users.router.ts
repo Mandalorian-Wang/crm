@@ -1,5 +1,12 @@
 import { Inject } from "@nestjs/common";
-import { Ctx, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import { z } from "zod";
 import { AuthService } from "../auth/auth.service";
 import type { AuthedTrpcContext } from "../trpc/context.types";
@@ -16,6 +23,20 @@ const usersListOutput = z.array(
 	}),
 );
 
+const tablePreferenceInput = z.object({
+	table: z.enum(["companies", "contacts"]),
+});
+const tablePreferenceOutput = z.object({
+	hiddenColumns: z.array(z.string()).nullable(),
+});
+const saveTablePreferenceInput = tablePreferenceInput.extend({
+	hiddenColumns: z.array(z.string().max(200)).max(300),
+});
+const favoriteInput = z.object({
+	companyId: z.string(),
+	favorite: z.boolean(),
+});
+
 @Router({ alias: "users" })
 @UseMiddlewares(AuthMiddleware)
 export class UsersRouter {
@@ -23,6 +44,39 @@ export class UsersRouter {
 		@Inject(UsersService) private readonly users: UsersService,
 		@Inject(AuthService) private readonly auth: AuthService,
 	) {}
+
+	@Query({ input: tablePreferenceInput, output: tablePreferenceOutput })
+	async tablePreference(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof tablePreferenceInput>,
+	) {
+		return this.users.tablePreference(ctx.user.id, input.table);
+	}
+	@Mutation({ input: saveTablePreferenceInput, output: tablePreferenceOutput })
+	async saveTablePreference(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof saveTablePreferenceInput>,
+	) {
+		return this.users.saveTablePreference(
+			ctx.user.id,
+			input.table,
+			input.hiddenColumns,
+		);
+	}
+	@Mutation({
+		input: favoriteInput,
+		output: z.object({ favorite: z.boolean() }),
+	})
+	async setCompanyFavorite(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof favoriteInput>,
+	) {
+		return this.users.setCompanyFavorite(
+			ctx.user.id,
+			input.companyId,
+			input.favorite,
+		);
+	}
 
 	@Query()
 	async me(@Ctx() ctx: AuthedTrpcContext) {

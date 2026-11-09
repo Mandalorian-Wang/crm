@@ -23,7 +23,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 const GROUP_LABEL = {
 	company: "Cloud organizations",
-	contact: "Contacts",
+	contact: "Inbound users",
 	deal: "Deals",
 } as const;
 

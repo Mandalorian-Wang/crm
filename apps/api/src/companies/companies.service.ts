@@ -81,9 +81,25 @@ export class CompaniesService {
 		private readonly fields: FieldsService,
 	) {}
 
-	async list(input: CompanyListInput): Promise<ListResult<CompanyRow>> {
+	async list(
+		input: CompanyListInput,
+		userId?: string,
+	): Promise<ListResult<CompanyRow>> {
 		const filterableFields = await this.fields.filterableFieldsFor("COMPANY");
-		const where = this.buildWhere(input, filterableFields);
+		const favoriteFilter: Prisma.CompanyWhereInput =
+			input.favorites === "mine"
+				? { favorites: { some: { userId: userId ?? "" } } }
+				: {};
+		const favorites = userId
+			? await this.db.companyFavorite.findMany({
+					where: { userId },
+					select: { companyId: true },
+				})
+			: [];
+		const favoriteIds = new Set(favorites.map((f) => f.companyId));
+		const where = {
+			AND: [this.buildWhere(input, filterableFields), favoriteFilter],
+		};
 		const { skip, take } = paginate(input);
 
 		let dateOrder: string[] | null = null;
@@ -143,7 +159,7 @@ export class CompaniesService {
 				},
 			}),
 			this.db.company.count({ where }),
-			this.facetCounts(input, filterableFields),
+			this.facetCounts(input, filterableFields, favoriteFilter),
 		]);
 
 		if (dateOrder !== null) {
@@ -160,6 +176,7 @@ export class CompaniesService {
 
 		return {
 			rows: rows.map((row) => ({
+				isFavorite: favoriteIds.has(row.id),
 				id: row.id,
 				name: row.name,
 				domain: row.domain,
@@ -702,9 +719,14 @@ export class CompaniesService {
 	private async facetCounts(
 		input: CompanyListInput,
 		filterableFields: FieldDefinitionWithOptions[],
+		favoriteFilter: Prisma.CompanyWhereInput,
 	) {
 		const where = {
-			AND: [this.searchFilter(input.q), archivedFilter(input.archived)],
+			AND: [
+				this.searchFilter(input.q),
+				archivedFilter(input.archived),
+				favoriteFilter,
+			],
 		};
 
 		const [owners, industries, enrichment, sources, activity, fieldFacets] =

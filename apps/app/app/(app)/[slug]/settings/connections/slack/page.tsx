@@ -253,12 +253,6 @@ function ConnectedSlack({
 							</Link>
 						),
 					)}
-					<Link
-						className="px-(--spacing-block-inline) py-4 font-medium text-sm hover:bg-muted/50"
-						href={`/${slug}/chat`}
-					>
-						Describe another agent in chat
-					</Link>
 				</div>
 			</section>
 			<div className="flex items-center justify-between gap-4 px-(--spacing-block-inline)">

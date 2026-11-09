@@ -13,6 +13,8 @@ generator client {
 }
 
 model User {
+  tablePreferences UserTablePreference[]
+  companyFavorites CompanyFavorite[]
   id            String    @id
   name          String
   email         String
@@ -407,6 +409,7 @@ enum AgentResponseRating {
 }
 
 model Company {
+  favorites CompanyFavorite[]
   id          String  @id @default(cuid())
   name        String
   domain      String?
@@ -1744,4 +1747,24 @@ model ImportRun {
  finishedAt DateTime?
  @@index([source, scheduledDay, status])
  @@map("importRun")
+}
+
+model UserTablePreference {
+ userId String
+ table String
+ hiddenColumns String[]
+ updatedAt DateTime @updatedAt
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ @@id([userId, table])
+ @@map("userTablePreference")
+}
+model CompanyFavorite {
+ userId String
+ companyId String
+ createdAt DateTime @default(now())
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+ @@id([userId, companyId])
+ @@index([companyId])
+ @@map("companyFavorite")
 }

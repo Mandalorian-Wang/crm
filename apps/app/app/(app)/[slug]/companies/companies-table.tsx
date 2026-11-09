@@ -1,6 +1,8 @@
 "use client";
 
 import Archive from "@carbon/icons-react/es/Archive";
+import Star from "@carbon/icons-react/es/Star";
+import StarFilled from "@carbon/icons-react/es/StarFilled";
 import { Button } from "@crm/ui/components/button";
 import {
 	DataTable,
@@ -13,8 +15,9 @@ import {
 	type EntityLogoTone,
 } from "@crm/ui/components/entity-logo";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
 import { useFieldFacets } from "@/components/crm/fields/field-facets";
@@ -23,6 +26,7 @@ import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
 import { ListSearch } from "@/components/data-table/list-search";
 import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
+import { useColumnPreferences } from "@/components/data-table/use-column-preferences";
 import { useTableQuery } from "@/components/data-table/use-table-query";
 import { LocalRelativeTime } from "@/components/local-date-time";
 import { ACTIVITY_FACET_OPTIONS } from "@/lib/activity-recency";
@@ -94,7 +98,7 @@ const COLUMNS: DataTableColumn<CompanyRow>[] = [
 	},
 	{
 		id: "contacts",
-		header: "Contacts",
+		header: "Inbound users",
 		sortable: true,
 		align: "right",
 		width: "w-[9%]",
@@ -173,6 +177,15 @@ const ARCHIVED_COLUMN: DataTableColumn<CompanyRow> = {
 export function CompaniesTable() {
 	const openRecord = useOpenRecord();
 	const trpc = useTRPC();
+	const columnPreferences = useColumnPreferences("companies");
+	const client = useQueryClient();
+	const favorite = useMutation(
+		trpc.users.setCompanyFavorite.mutationOptions({
+			onSuccess: () =>
+				client.invalidateQueries({ queryKey: trpc.companies.list.queryKey() }),
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 	const prefetchRecord = usePrefetchRecord();
 	const table = useTableQuery(companiesSearchParams);
 	const { query, input, setArchived } = table;
@@ -244,10 +257,23 @@ export function CompaniesTable() {
 
 	return (
 		<DataTable
+			columnPreferences={columnPreferences}
 			query={query}
 			search={<ListSearch placeholder="Search companies by name or domain…" />}
 			actions={
 				<>
+					<Button
+						variant={query.tab === "mine" ? "contrast" : "outline"}
+						size="sm"
+						aria-pressed={query.tab === "mine"}
+						onClick={() => {
+							selection.clear();
+							query.setTab(query.tab === "mine" ? "all" : "mine");
+						}}
+					>
+						<Star data-icon="inline-start" />
+						My favorites
+					</Button>
 					<SavedViewsMenu entity="COMPANY" table={table} />
 					<Button
 						variant={input.archived ? "contrast" : "outline"}
@@ -260,7 +286,52 @@ export function CompaniesTable() {
 					</Button>
 				</>
 			}
-			columns={columns}
+			columns={[
+				{
+					id: "favorite",
+					header: "Favorite",
+					hideable: false,
+					width: "w-12",
+					cell: (row) => (
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label={`${row.isFavorite ? "Unfavorite" : "Favorite"} ${row.name}`}
+							aria-pressed={row.isFavorite}
+							disabled={favorite.isPending}
+							onClick={(event) => {
+								event.stopPropagation();
+								favorite.mutate({
+									companyId: row.id,
+									favorite: !row.isFavorite,
+								});
+							}}
+						>
+							{row.isFavorite ? <StarFilled /> : <Star />}
+						</Button>
+					),
+				},
+				...columns.map((column) =>
+					column.id === "contacts"
+						? {
+								...column,
+								cell: (row: CompanyRow) => (
+									<Button
+										variant="ghost"
+										size="sm"
+										aria-label={`Open inbound users for ${row.name}`}
+										onClick={(event) => {
+											event.stopPropagation();
+											openRecord({ kind: "company", id: row.id }, "contacts");
+										}}
+									>
+										{row.contactCount}
+									</Button>
+								),
+							}
+						: column,
+				),
+			]}
 			rows={rows}
 			total={companies.data?.total ?? 0}
 			facetCounts={facetCounts}

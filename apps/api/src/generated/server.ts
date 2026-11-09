@@ -759,6 +759,31 @@ const appRouter = t.router({
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
     }),
   users: t.router({
+    tablePreference: publicProcedure
+      .input(z.object({
+	table: z.enum(["companies", "contacts"]),
+}))
+      .output(z.object({
+	hiddenColumns: z.array(z.string()).nullable(),
+}))
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    saveTablePreference: publicProcedure
+      .input(z.object({
+	table: z.enum(["companies", "contacts"]),
+}).extend({
+	hiddenColumns: z.array(z.string().max(200)).max(300),
+}))
+      .output(z.object({
+	hiddenColumns: z.array(z.string()).nullable(),
+}))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
+    setCompanyFavorite: publicProcedure
+      .input(z.object({
+	companyId: z.string(),
+	favorite: z.boolean(),
+}))
+      .output(z.object({ favorite: z.boolean() }))
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
     me: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<UsersRouter["me"]>>),
     list: publicProcedure

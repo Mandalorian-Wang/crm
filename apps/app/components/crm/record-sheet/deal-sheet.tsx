@@ -142,7 +142,7 @@ export function DealSheet({ dealId }: { dealId: string }) {
 				},
 				{
 					value: "contacts",
-					label: "Contacts",
+					label: "Inbound users",
 					count: deal.contacts.length,
 					content: (
 						<DealContacts
@@ -474,12 +474,12 @@ function DealContacts({
 				{adding ? null : (
 					<DetailSheetEmpty
 						icon={UserMultiple}
-						title="No contacts on this deal"
+						title="No inbound users on this deal"
 						description={`Nobody from ${deal.company.name} is attached yet. Bring the people you are selling to onto the deal and it says who to chase.`}
 						action={
 							<Button variant="outline" size="sm" onClick={onAdd}>
 								<Icon icon={Add} data-icon="inline-start" />
-								Add contact
+								Add inbound user
 							</Button>
 						}
 					/>
@@ -561,7 +561,7 @@ function DealContacts({
 				))}
 
 				<AddRow
-					label="Add contact"
+					label="Add inbound user"
 					columns={CONTACT_COLUMNS.length}
 					onClick={onAdd}
 				/>

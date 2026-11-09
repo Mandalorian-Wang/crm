@@ -60,12 +60,12 @@ export function useRecordStack() {
 	);
 
 	const write = useCallback(
-		(next: RecordRef[], history: "push" | "replace") => {
+		(next: RecordRef[], history: "push" | "replace", tab?: string) => {
 			void setParams(
 				{
 					[SEARCH_PARAM.record.stack]:
 						next.length === 0 ? null : next.map(recordKey),
-					[SEARCH_PARAM.record.tab]: null,
+					[SEARCH_PARAM.record.tab]: tab ?? null,
 					[SEARCH_PARAM.record.add]: null,
 					[SEARCH_PARAM.record.thread]: null,
 					[SEARCH_PARAM.fieldsSheet.entity]: null,
@@ -79,11 +79,12 @@ export function useRecordStack() {
 	);
 
 	const open = useCallback(
-		(ref: RecordRef) => {
+		(ref: RecordRef, tab?: string) => {
 			const key = recordKey(ref);
 			write(
 				[...stack.filter((entry) => recordKey(entry) !== key), ref],
 				stack.length === 0 ? "push" : "replace",
+				tab,
 			);
 		},
 		[stack, write],

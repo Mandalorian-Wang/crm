@@ -39,7 +39,7 @@ function AddButton(props: ComponentProps<typeof Button>) {
 	return (
 		<Button {...props}>
 			<Icon icon={Add} data-icon="inline-start" />
-			New contact
+			New inbound user
 		</Button>
 	);
 }
@@ -100,7 +100,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 			</SheetTrigger>
 			<SheetContent side="right">
 				<SheetHeader>
-					<SheetTitle>New contact</SheetTitle>
+					<SheetTitle>New inbound user</SheetTitle>
 					<SheetDescription>
 						Email addresses are unique, so importing the same person twice
 						updates them rather than duplicating them.
@@ -202,7 +202,7 @@ function CreateContactForm({ companyId }: { companyId?: string }) {
 						disabled={create.isPending || firstName.trim() === ""}
 					>
 						{create.isPending ? <Spinner /> : null}
-						Add contact
+						Add inbound user
 					</Button>
 					<SheetClose asChild>
 						<Button variant="outline">Cancel</Button>

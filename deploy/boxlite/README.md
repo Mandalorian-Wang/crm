@@ -145,3 +145,13 @@ Better Auth 1.7 uses `/api/auth/callback/slack` for the Slack OAuth redirect. Up
 ## Pause GitHub imports
 
 `GITHUB_SYNC_ENABLED=false` disables GitHub imports, including `sync --force`. The dev deployment currently uses this setting at the user's request. Cloud and billing jobs continue on their existing daily schedule. Existing contacts and the GitHub tab remain available. To resume, set `GITHUB_SYNC_ENABLED=true` after confirming token access, upload the private environment and restart the sync worker.
+
+## Personal columns and organization favorites
+
+The Contacts navigation, page and organization tab now display **Inbound users**. Routes and API entity names stay compatible. Chat is hidden from the primary navigation and Slack settings entry point.
+
+The Columns menu on Cloud organizations and Inbound users saves visibility automatically to `userTablePreference`, keyed by authenticated user and table. Settings persist across devices and sessions. Field definitions remain workspace-wide; each user's visible-column choices are separate. Users who share the temporary admin login share its preferences.
+
+Each organization row has a personal Favorite star. **My favorites** filters the current user's organizations on the server, before pagination, and applies the same scope to facet counts. Favorites use the authenticated session user; clients cannot choose another user ID. Unfavoriting does not change another user's favorites. Organization and user deletion cascade to their saved favorites.
+
+Organization inbound-user counts open the linked-user tab. Linked names are explicit keyboard-accessible buttons that open the user record. An organization whose Cloud members have not been imported yet shows a pending-sync explanation instead of implying it has no members.

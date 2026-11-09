@@ -94,7 +94,7 @@ export function QuickAddContact({
 
 	return (
 		<QuickAddForm
-			submitLabel="Add contact"
+			submitLabel="Add inbound user"
 			pending={create.isPending}
 			ready={firstName.trim() !== ""}
 			onCancel={onDone}
