@@ -21,6 +21,14 @@ export enum NodeEnv {
 export class EnvironmentVariables {
 	@IsOptional()
 	@IsString()
+	LINEAR_API_KEY?: string;
+
+	@IsOptional()
+	@Matches(/^([a-z0-9-]+)?$/)
+	LINEAR_WORKSPACE_SLUG?: string;
+
+	@IsOptional()
+	@IsString()
 	@Matches(/^(true|false)$/)
 	CRM_PASSWORD_LOGIN?: string;
 

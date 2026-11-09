@@ -185,3 +185,11 @@ The organization table removes CRM Created date from its columns and defaults to
 The organization table and Columns menu omit sales opportunity counts. The Cloud registration field displays **Registered at** in the table, filters and details; its stable key remains `cloud_registered_at`. Missing settled usage is stored as a missing value and displays a dash, never zero. The upgrade clears the old `No settled usage reported` placeholder values without changing recorded amounts.
 
 Cloud still imports the organization directory before members. Member processing now traverses the creation-ordered directory in reverse, prioritizing recent organizations while retaining per-day checkpoints. A directory row can exist before its members finish importing. The detail page describes this pending state. A targeted member refresh resolves a specific waiting organization without waiting for historical backfill.
+
+## Linear customer issues and source-managed fields
+
+Set optional `LINEAR_API_KEY` and `LINEAR_WORKSPACE_SLUG=polygala` in the private root `.env`, then restart the API. Keep the key out of the browser and source archive. Linear uses the personal key directly in the Authorization header. No Linear mutations are sent.
+
+Each organization has a **Linear issue** tab. Search the paginated customer directory and select one customer, or enter its UUID or customer URL. The API validates the configured workspace before saving the binding. Linking a different customer replaces the CRM binding. Unlinking removes the CRM binding and its Linear URL; it never deletes a Linear customer. The tab fetches linked issues through Customer requests, follows pagination and deduplicates issue IDs. Project-only requests are excluded. Fetch failures display an error instead of an empty list. Refresh issues fetches current data.
+
+Cloud and GitHub source fields, registration source and bound Linear customer identifiers are read-only. Record value APIs reject edits, including mixed payloads. Field settings allow display changes but reject source type/agent changes, archival and deletion. Sync continues to write source values directly. Human-maintained Discord, Notion and generic Linear URL fields remain editable.

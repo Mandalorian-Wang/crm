@@ -311,3 +311,7 @@ Read it before touching any amount, total, chart or rate.
 - **Background writes need polling, not invalidation** — `refetchInterval` while
   `PENDING`/`RUNNING`, via `isEnriching()` and `ENRICHMENT_POLL_MS`. **Lists poll too,
   not just the sheet.**
+
+## Linear customer read adapter
+
+The Linear module is a read-only vendor adapter for explicitly selected customers. It performs no research, scoring or identity matching. This is an additional exception to the vendor-client placement rule. Authenticated users select the customer; the API validates its workspace and reads customer requests. Binding only changes CRM fields. No Linear mutations are sent.

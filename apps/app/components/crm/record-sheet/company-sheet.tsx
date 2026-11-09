@@ -53,6 +53,7 @@ import { hasCompanyLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { CompanyLinear } from "./company-linear";
 import { QuickAddContact, QuickAddDeal } from "./quick-add";
 import { RecordActions } from "./record-actions";
 import { RecordLink } from "./record-link";
@@ -169,6 +170,11 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							onDone={() => setAdding(null)}
 						/>
 					),
+				},
+				{
+					value: "linear",
+					label: "Linear issue",
+					content: <CompanyLinear key={company.id} companyId={company.id} />,
 				},
 				{
 					value: "deals",

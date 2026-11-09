@@ -5,7 +5,11 @@ import ChevronRight from "@carbon/icons-react/es/ChevronRight";
 import OverflowMenuVertical from "@carbon/icons-react/es/OverflowMenuVertical";
 import Renew from "@carbon/icons-react/es/Renew";
 import Warning from "@carbon/icons-react/es/Warning";
-import { fieldKeyFromLabel, typeLabel } from "@crm/db/fields-shape";
+import {
+	fieldKeyFromLabel,
+	isSourceManagedField,
+	typeLabel,
+} from "@crm/db/fields-shape";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -76,7 +80,11 @@ function summaryOf(field: Field): string {
 					: field.label),
 		);
 	} else {
-		parts.push(MANUAL_ONLY);
+		parts.push(
+			isSourceManagedField(field.key)
+				? "Source-managed · Read-only"
+				: MANUAL_ONLY,
+		);
 		if (field.required) parts.push("required");
 	}
 
@@ -367,6 +375,7 @@ export function FieldsList({
 													</DropdownMenuItem>
 													<DropdownMenuSeparator />
 													<DropdownMenuItem
+														disabled={isSourceManagedField(field.key)}
 														onSelect={() => archive.mutate({ id: field.id })}
 													>
 														Archive

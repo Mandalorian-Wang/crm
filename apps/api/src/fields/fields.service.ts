@@ -10,6 +10,7 @@ import {
 	FieldValueError,
 	type FieldValueJson,
 	fieldKeyFromLabel,
+	isSourceManagedField,
 	type RecordField,
 	readValue,
 	recordColumn,
@@ -81,6 +82,11 @@ export class FieldsService {
 			throw new BadRequestException("That label does not make a usable key.");
 		}
 
+		if (isSourceManagedField(key))
+			throw new BadRequestException(
+				"This field key is reserved for a data source.",
+			);
+
 		const taken = await this.db.fieldDefinition.findUnique({
 			where: { entity_key: { entity: input.entity, key } },
 			select: { id: true },
@@ -150,6 +156,18 @@ export class FieldsService {
 
 		if (!existing) throw new NotFoundException("That field does not exist.");
 
+		if (
+			isSourceManagedField(existing.key) &&
+			(data.type !== undefined ||
+				data.agentFilled !== undefined ||
+				data.agentBrief !== undefined ||
+				data.options !== undefined ||
+				data.required !== undefined)
+		) {
+			throw new BadRequestException(
+				"Source-managed fields only allow display settings to change.",
+			);
+		}
 		const type = data.type ?? existing.type;
 
 		if (data.type && data.type !== existing.type) {
@@ -264,6 +282,13 @@ export class FieldsService {
 	}
 
 	async archive(id: string): Promise<SerializedField> {
+		const definition = await this.db.fieldDefinition.findUnique({
+			where: { id },
+		});
+		if (definition && isSourceManagedField(definition.key))
+			throw new BadRequestException(
+				"Source-managed fields cannot be archived. Change their visibility instead.",
+			);
 		try {
 			const definition = await this.db.fieldDefinition.update({
 				where: { id },
@@ -292,6 +317,11 @@ export class FieldsService {
 	}
 
 	async delete(id: string): Promise<{ id: string }> {
+		const definition = await this.db.fieldDefinition.findUnique({
+			where: { id },
+		});
+		if (definition && isSourceManagedField(definition.key))
+			throw new BadRequestException("Source-managed fields cannot be deleted.");
 		try {
 			await this.db.fieldDefinition.delete({ where: { id } });
 		} catch (error) {
@@ -625,6 +655,11 @@ export class FieldsService {
 	): Promise<void> {
 		if (Object.keys(values).length === 0) return;
 
+		const protectedKey = Object.keys(values).find(isSourceManagedField);
+		if (protectedKey)
+			throw new BadRequestException(
+				"This field is managed by its data source and is read-only.",
+			);
 		const definitions = await this.definitionsFor(entity, tx);
 
 		try {

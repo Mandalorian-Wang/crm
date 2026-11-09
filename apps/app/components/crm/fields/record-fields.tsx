@@ -2,6 +2,7 @@
 
 import Settings from "@carbon/icons-react/es/Settings";
 import type { FieldValueJson } from "@crm/db/fields";
+import { isSourceManagedField } from "@crm/db/fields-shape";
 import { Button } from "@crm/ui/components/button";
 import { Checkbox } from "@crm/ui/components/checkbox";
 import { Icon } from "@crm/ui/components/icon";
@@ -22,6 +23,7 @@ import {
 	useFieldsSheet,
 } from "@/components/crm/record-sheet/record-stack";
 import { DetailSheetProperty } from "@/components/detail-sheet";
+import { LocalDay } from "@/components/local-date-time";
 import { useTRPC } from "@/lib/trpc/client";
 
 type RecordFieldOption = { id: string; label: string };
@@ -94,6 +96,22 @@ export function RecordFields({
 					const save = (value: FieldValueJson) =>
 						onSave({ [field.key]: value });
 					const busy = saving(field.key);
+
+					if (isSourceManagedField(field.key)) {
+						return (
+							<DetailSheetProperty key={field.id} label={field.label}>
+								<span title="Managed by the data source · Read-only">
+									{field.value === null ? (
+										"—"
+									) : field.type === "DATE" ? (
+										<LocalDay date={String(field.value)} />
+									) : (
+										String(field.value)
+									)}
+								</span>
+							</DetailSheetProperty>
+						);
+					}
 
 					if (field.type === "CHECKBOX") {
 						return (

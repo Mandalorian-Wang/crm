@@ -5,6 +5,7 @@ import Close from "@carbon/icons-react/es/Close";
 import {
 	FIELD_TYPES,
 	fieldKeyFromLabel,
+	isSourceManagedField,
 	typeLabel,
 } from "@crm/db/fields-shape";
 import {
@@ -222,6 +223,7 @@ export function FieldEditor({
 	);
 
 	const key = field?.key ?? fieldKeyFromLabel(draft.label);
+	const managed = isSourceManagedField(key);
 	const saving = create.isPending || update.isPending;
 	const filterable = ["SELECT", "USER", "NUMBER", "DATE"].includes(draft.type);
 
@@ -238,7 +240,17 @@ export function FieldEditor({
 		};
 
 		if (field) {
-			update.mutate({ id: field.id, data: payload });
+			update.mutate({
+				id: field.id,
+				data: managed
+					? {
+							label: draft.label,
+							showOnSheet: draft.showOnSheet,
+							showOnTable: draft.showOnTable,
+							showOnFilter: filterable && draft.showOnFilter,
+						}
+					: payload,
+			});
 			return;
 		}
 
@@ -277,6 +289,7 @@ export function FieldEditor({
 						</div>
 						<Switch
 							id={agentId}
+							disabled={managed}
 							checked={draft.agentFilled}
 							onCheckedChange={(agentFilled) => patch({ agentFilled })}
 						/>
@@ -286,6 +299,7 @@ export function FieldEditor({
 						<FieldLabel htmlFor={briefId}>{BRIEF_LABEL}</FieldLabel>
 						<Textarea
 							id={briefId}
+							disabled={managed}
 							rows={3}
 							value={draft.agentBrief}
 							onChange={(event) => patch({ agentBrief: event.target.value })}
@@ -298,6 +312,7 @@ export function FieldEditor({
 					<Field>
 						<FieldLabel htmlFor={typeId}>{TYPE_LABEL}</FieldLabel>
 						<Select
+							disabled={managed}
 							value={draft.type}
 							onValueChange={(value) => patch({ type: value as Draft["type"] })}
 						>
@@ -421,14 +436,18 @@ export function FieldEditor({
 				</div>
 			</div>
 
-			{field ? <Coverage field={field} /> : null}
+			{field && !managed ? <Coverage field={field} /> : null}
 
 			<div className="flex shrink-0 items-center gap-2 border-t px-5 py-3">
 				<Button disabled={saving || draft.label.trim() === ""} onClick={save}>
 					{field ? SAVE : ADD_FIELD}
 				</Button>
 				{field ? (
-					<Button variant="outline" onClick={() => setConfirming(true)}>
+					<Button
+						variant="outline"
+						disabled={managed}
+						onClick={() => setConfirming(true)}
+					>
 						{ARCHIVE}
 					</Button>
 				) : (

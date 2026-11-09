@@ -22,6 +22,7 @@ type RemovedRecord = { kind: RecordKind; id: string };
 type RemovedRecords = { kind: RecordKind; ids: string[] };
 
 export type CrmCache = {
+	linear(companyId: string): Promise<void>;
 	company(id?: string, options?: Options): Promise<void>;
 	contact(id?: string, options?: Options): Promise<void>;
 	deal(id?: string, options?: Options): Promise<void>;
@@ -161,6 +162,16 @@ export function useCrmCache(): CrmCache {
 				],
 				[],
 				options,
+			),
+
+		linear: (companyId) =>
+			run(
+				[
+					trpc.linear.binding.queryKey({ companyId }),
+					trpc.linear.issues.queryKey({ companyId }),
+					trpc.companies.byId.queryKey({ id: companyId }),
+				],
+				[...listKeys(), trpc.fields.list.queryKey()],
 			),
 
 		company: (id, options) =>
