@@ -10,6 +10,7 @@ import { organization } from "better-auth/plugins/organization";
 import { API_KEY_EXPIRATION, API_KEY_HEADER, API_KEY_PREFIX } from "./api-keys";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
+import { linearUserInfo } from "./linear";
 import { ensureWorkspaceMembership } from "./organization";
 import {
 	GOOGLE_PROVIDER_ID,
@@ -36,7 +37,10 @@ const slackRedirectUri = new URL(
 	env.apiUrl,
 ).toString();
 
-if (env.google) {
+if (env.linear)
+	socialProviders.linear = { ...env.linear, getUserInfo: linearUserInfo };
+
+if (env.google && process.env.CRM_LINEAR_ONLY !== "true") {
 	const google: NonNullable<typeof socialProviders.google> = {
 		...env.google,
 
@@ -51,7 +55,7 @@ if (env.google) {
 	socialProviders.google = google;
 }
 
-if (env.microsoft) {
+if (env.microsoft && process.env.CRM_LINEAR_ONLY !== "true") {
 	socialProviders.microsoft = {
 		clientId: env.microsoft.clientId,
 		clientSecret: env.microsoft.clientSecret,
@@ -78,7 +82,9 @@ export const auth = betterAuth({
 	}),
 
 	emailAndPassword: {
-		enabled: process.env.CRM_PASSWORD_LOGIN === "true",
+		enabled:
+			process.env.CRM_PASSWORD_LOGIN === "true" &&
+			process.env.CRM_LINEAR_ONLY !== "true",
 		disableSignUp: true,
 	},
 
@@ -97,6 +103,7 @@ export const auth = betterAuth({
 		cookieCache: {
 			enabled: true,
 			maxAge: 5 * 60,
+			version: process.env.CRM_LINEAR_ONLY === "true" ? "linear-only-v1" : "1",
 		},
 	},
 

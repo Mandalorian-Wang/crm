@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import type { Db } from "@crm/db";
 import {
 	BadGatewayException,
 	Injectable,
 	NotFoundException,
+	ServiceUnavailableException,
 } from "@nestjs/common";
 import { z } from "zod";
 import { InjectDatabase } from "../database/database.constants";
@@ -11,6 +13,8 @@ import {
 	linearCustomersOutput,
 	linearIssue,
 	linearNeedsOutput,
+	linearRequestInput,
+	linearRequestOutput,
 } from "./linear.contracts";
 import { customerReference, linearRequest } from "./linear-client";
 import { LINEAR } from "./linear-config";
@@ -18,6 +22,62 @@ import { LINEAR } from "./linear-config";
 @Injectable()
 export class LinearService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
+
+	async submitRequest(
+		input: z.infer<typeof linearRequestInput>,
+		user: { id: string; name: string; email: string },
+	) {
+		const projectId = process.env.LINEAR_CRM_PROJECT_ID;
+		const teamId = process.env.LINEAR_CRM_TEAM_ID;
+		const labelId = process.env.LINEAR_CRM_LABEL_ID;
+		if (!projectId || !teamId || !labelId)
+			throw new ServiceUnavailableException("需求提交尚未配置完成。");
+		const hex = createHash("sha256")
+			.update(
+				JSON.stringify([user.id, input.requestId, input.title, input.content]),
+			)
+			.digest("hex");
+		const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+		const lookup = async () => {
+			const result = await linearRequest(
+				`query Existing($id: ID!) { organization { urlKey } issues(filter:{id:{eq:$id}},first:1) { nodes { id identifier url } } }`,
+				{ id },
+				z.object({ issues: z.object({ nodes: z.array(linearRequestOutput) }) }),
+			);
+			return result.issues.nodes[0];
+		};
+		const existing = await lookup();
+		if (existing) return existing;
+		try {
+			const result = await linearRequest(
+				`mutation CreateRequest($input: IssueCreateInput!) { issueCreate(input:$input) { success issue { id identifier url } } }`,
+				{
+					input: {
+						id,
+						title: input.title,
+						description: `${input.content}\n\n---\nSubmitted from BoxLite CRM by ${user.name} (${user.email}).`,
+						projectId,
+						teamId,
+						labelIds: [labelId],
+					},
+				},
+				z.object({
+					issueCreate: z.object({
+						success: z.boolean(),
+						issue: linearRequestOutput.nullable(),
+					}),
+				}),
+				true,
+			);
+			if (!result.issueCreate.success || !result.issueCreate.issue)
+				throw new BadGatewayException("Linear 未确认需求已创建，请重试。");
+			return result.issueCreate.issue;
+		} catch (error) {
+			const recovered = await lookup();
+			if (recovered) return recovered;
+			throw error;
+		}
+	}
 
 	private async company(companyId: string) {
 		const company = await this.db.company.findUnique({

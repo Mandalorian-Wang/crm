@@ -25,6 +25,28 @@ const connectStartBody = z.object({ provider: z.string() });
 const callbackParams = z.object({ id: z.string() });
 
 export const slackConnectGuard = createAuthMiddleware(async (ctx) => {
+	if (process.env.CRM_LINEAR_ONLY === "true") {
+		const body = connectStartBody.safeParse(ctx.body);
+		const permitted =
+			ctx.path === "/sign-in/social" &&
+			body.success &&
+			body.data.provider === "linear";
+		if (
+			(ctx.path.startsWith("/sign-in/") || ctx.path.startsWith("/sso/")) &&
+			!permitted
+		)
+			throw new APIError("FORBIDDEN", {
+				message: "Use Linear to sign in with your @polygala.ai account.",
+			});
+		if (
+			ctx.path.startsWith("/callback/") &&
+			!["/callback/linear", "/callback/slack"].includes(ctx.path)
+		)
+			throw new APIError("FORBIDDEN", {
+				message: "Only Linear sign-in is enabled.",
+			});
+	}
+
 	const guarded =
 		startsSlackConnect(ctx.path, ctx.body) ||
 		completesSlackConnect(ctx.path, ctx.params);

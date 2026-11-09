@@ -19,6 +19,14 @@ export enum NodeEnv {
 }
 
 export class EnvironmentVariables {
+	@IsOptional() @IsString() LINEAR_CLIENT_ID?: string;
+	@IsOptional() @IsString() LINEAR_CLIENT_SECRET?: string;
+	@IsOptional() @IsString() LINEAR_WORKSPACE_ID?: string;
+	@IsOptional() @Matches(/^(true|false)$/) CRM_LINEAR_ONLY?: string;
+	@IsOptional() @IsString() LINEAR_CRM_PROJECT_ID?: string;
+	@IsOptional() @IsString() LINEAR_CRM_TEAM_ID?: string;
+	@IsOptional() @IsString() LINEAR_CRM_LABEL_ID?: string;
+
 	@IsOptional()
 	@IsString()
 	LINEAR_API_KEY?: string;

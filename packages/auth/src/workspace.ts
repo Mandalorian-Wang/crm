@@ -51,6 +51,8 @@ export function isWorkspaceEmail(email: string | null | undefined): boolean {
 	const [local, host] = parts;
 	if (!local || !host) return false;
 
+	if (process.env.CRM_LINEAR_ONLY === "true") return host === "polygala.ai";
+
 	const { domains, addresses } = allowList();
 
 	if (addresses.includes(value)) return true;

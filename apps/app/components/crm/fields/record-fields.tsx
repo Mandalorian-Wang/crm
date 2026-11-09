@@ -24,6 +24,7 @@ import {
 } from "@/components/crm/record-sheet/record-stack";
 import { DetailSheetProperty } from "@/components/detail-sheet";
 import { LocalDay } from "@/components/local-date-time";
+import { billingTimestamp, billingWindow } from "@/lib/billing-display";
 import { useTRPC } from "@/lib/trpc/client";
 
 type RecordFieldOption = { id: string; label: string };
@@ -97,6 +98,30 @@ export function RecordFields({
 						onSave({ [field.key]: value });
 					const busy = saving(field.key);
 
+					if (
+						field.key === "cloud_billing_window" ||
+						field.key === "cloud_billing_synced_at"
+					) {
+						return (
+							<DetailSheetProperty
+								key={field.id}
+								label={
+									field.key === "cloud_billing_window"
+										? "统计范围"
+										: "费用更新时间"
+								}
+								wide
+							>
+								<span>
+									{field.value === null
+										? "—"
+										: field.key === "cloud_billing_window"
+											? billingWindow(String(field.value))
+											: billingTimestamp(String(field.value))}
+								</span>
+							</DetailSheetProperty>
+						);
+					}
 					if (isSourceManagedField(field.key)) {
 						return (
 							<DetailSheetProperty key={field.id} label={field.label}>

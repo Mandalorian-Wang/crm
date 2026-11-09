@@ -1,4 +1,3 @@
-import type { MailboxProviderId } from "@crm/auth/scopes";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
@@ -14,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 type SignInOptions = {
+	linear: boolean;
 	google: boolean;
 	microsoft: boolean;
 	providers: SsoProvider[];
@@ -48,7 +48,7 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 				fallback={
 					<AuthHeading
 						title="BoxLite CRM"
-						description="Sign in with your account to continue."
+						description="Sign in with your @polygala.ai Linear account."
 					/>
 				}
 			>
@@ -71,8 +71,9 @@ async function SignIn({
 		redirect("/");
 	}
 
-	const configured: MailboxProviderId[] = [];
-	if (options?.google ?? true) configured.push("google");
+	const configured: ("linear" | "google" | "microsoft")[] = [];
+	if (options?.linear) configured.push("linear");
+	if (options?.google ?? false) configured.push("google");
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
 	const providers = options?.providers ?? [];
@@ -86,7 +87,9 @@ async function SignIn({
 				? configured
 				: [];
 
-	const passwordLogin = process.env.CRM_PASSWORD_LOGIN === "true";
+	const passwordLogin =
+		process.env.CRM_PASSWORD_LOGIN === "true" &&
+		process.env.CRM_LINEAR_ONLY !== "true";
 
 	if (!passwordLogin && !showSso && social.length === 0) {
 		return (
@@ -110,7 +113,7 @@ async function SignIn({
 		<>
 			<AuthHeading
 				title="BoxLite CRM"
-				description="Sign in with your account to continue."
+				description="Sign in with your @polygala.ai Linear account."
 			/>
 
 			{passwordLogin ? <PasswordSignIn emailDomain="polygala.ai" /> : null}

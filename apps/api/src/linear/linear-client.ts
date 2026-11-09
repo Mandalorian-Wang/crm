@@ -46,12 +46,27 @@ export async function linearRequest<T>(
 	query: string,
 	variables: {
 		id?: string;
+		input?: {
+			id: string;
+			title: string;
+			description: string;
+			teamId: string;
+			projectId: string;
+			labelIds: string[];
+		};
 		filter?: { name?: { containsIgnoreCase: string } };
 		after?: string | null;
 		first?: number;
 	},
 	schema: z.ZodType<T>,
+	mutation = false,
 ): Promise<T> {
+	if (mutation)
+		await linearRequest(
+			"{ organization { urlKey } }",
+			{},
+			z.object({ organization: z.object({ urlKey: z.string() }) }),
+		);
 	const key = process.env.LINEAR_API_KEY;
 	const workspace = process.env.LINEAR_WORKSPACE_SLUG;
 	if (!key || !workspace)
@@ -92,7 +107,10 @@ export async function linearRequest<T>(
 	const scope = z
 		.object({ organization: z.object({ urlKey: z.string() }) })
 		.safeParse(raw.data);
-	if (!scope.success || scope.data.organization.urlKey !== workspace)
+	if (
+		!mutation &&
+		(!scope.success || scope.data.organization.urlKey !== workspace)
+	)
 		throw new BadGatewayException(
 			"The Linear API key belongs to a different workspace.",
 		);

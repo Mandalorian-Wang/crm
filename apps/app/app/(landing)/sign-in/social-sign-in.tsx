@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "@crm/auth/client";
-import type { MailboxProviderId } from "@crm/auth/scopes";
+
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import { Button } from "@crm/ui/components/button";
@@ -16,11 +16,16 @@ type ProviderChoice = {
 };
 
 const PROVIDERS = {
+	linear: { label: "Continue with Linear", Logo: () => null },
 	google: { label: "Continue with Google", Logo: GoogleLogo },
 	microsoft: { label: "Continue with Microsoft", Logo: MicrosoftLogo },
-} as const satisfies Record<MailboxProviderId, ProviderChoice>;
+} as const satisfies Record<"linear" | "google" | "microsoft", ProviderChoice>;
 
-export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
+export function SocialSignIn({
+	provider,
+}: {
+	provider: "linear" | "google" | "microsoft";
+}) {
 	const [pending, setPending] = useState(false);
 
 	const { label, Logo } = PROVIDERS[provider];

@@ -65,6 +65,11 @@ describe("Auth (e2e)", () => {
 		);
 
 		expect(response.body.result.data).toEqual({
+			linear: Boolean(
+				process.env.LINEAR_CLIENT_ID &&
+					process.env.LINEAR_CLIENT_SECRET &&
+					process.env.LINEAR_WORKSPACE_ID,
+			),
 			google: true,
 			microsoft: microsoftConfigured,
 			providers: [],

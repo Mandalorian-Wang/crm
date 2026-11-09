@@ -1,5 +1,9 @@
 import { auth } from "@crm/auth/auth";
-import { isGoogleConfigured, isMicrosoftConfigured } from "@crm/auth/env";
+import {
+	isGoogleConfigured,
+	isLinearConfigured,
+	isMicrosoftConfigured,
+} from "@crm/auth/env";
 import { WORKSPACE_ID, workspaceRoleOf } from "@crm/auth/organization";
 import {
 	canConfigureSso,
@@ -122,12 +126,16 @@ export class SsoService {
 		});
 
 		return {
-			google: isGoogleConfigured(),
-			microsoft: isMicrosoftConfigured(),
-			providers: rows.map((row) => ({
-				providerId: row.providerId,
-				name: ssoProviderName(row.providerId),
-			})),
+			linear: isLinearConfigured(),
+			google: process.env.CRM_LINEAR_ONLY !== "true" && isGoogleConfigured(),
+			microsoft:
+				process.env.CRM_LINEAR_ONLY !== "true" && isMicrosoftConfigured(),
+			providers: (process.env.CRM_LINEAR_ONLY === "true" ? [] : rows).map(
+				(row) => ({
+					providerId: row.providerId,
+					name: ssoProviderName(row.providerId),
+				}),
+			),
 		};
 	}
 

@@ -314,4 +314,4 @@ Read it before touching any amount, total, chart or rate.
 
 ## Linear customer read adapter
 
-The Linear module is a read-only vendor adapter for explicitly selected customers. It performs no research, scoring or identity matching. This is an additional exception to the vendor-client placement rule. Authenticated users select the customer; the API validates its workspace and reads customer requests. Binding only changes CRM fields. No Linear mutations are sent.
+The Linear module reads explicitly selected customers and creates issues from explicit CRM request submissions. It performs no research, scoring or identity matching. This is an additional exception to the vendor-client placement rule. Authenticated users select the customer; the API validates its workspace and reads customer requests. Binding only changes CRM fields. The only Linear write is a submitted request, fixed to the configured project, team and CRM label. A deterministic issue UUID makes retries idempotent.

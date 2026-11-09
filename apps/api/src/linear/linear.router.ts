@@ -1,6 +1,14 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { z } from "zod";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	linearBindingInput,
@@ -9,6 +17,8 @@ import {
 	linearCustomersInput,
 	linearCustomersOutput,
 	linearIssuesOutput,
+	linearRequestInput,
+	linearRequestOutput,
 } from "./linear.contracts";
 import { LinearService } from "./linear.service";
 
@@ -16,6 +26,14 @@ import { LinearService } from "./linear.service";
 @UseMiddlewares(AuthMiddleware)
 export class LinearRouter {
 	constructor(@Inject(LinearService) private readonly linear: LinearService) {}
+	@Mutation({ input: linearRequestInput, output: linearRequestOutput })
+	submitRequest(
+		@Input() input: z.infer<typeof linearRequestInput>,
+		@Ctx() ctx: AuthedTrpcContext,
+	) {
+		return this.linear.submitRequest(input, ctx.user);
+	}
+
 	@Query({ input: linearCompanyInput, output: linearBindingOutput })
 	binding(@Input("companyId") companyId: string) {
 		return this.linear.binding(companyId);

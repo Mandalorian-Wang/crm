@@ -46,3 +46,14 @@ export const linearNeedsOutput = z.object({
 		pageInfo: linearPageInfo,
 	}),
 });
+
+export const linearRequestInput = z.object({
+	requestId: z.uuid(),
+	title: z.string().trim().min(1).max(200),
+	content: z.string().trim().min(1).max(20000),
+});
+export const linearRequestOutput = z.object({
+	id: z.string(),
+	identifier: z.string(),
+	url: z.url(),
+});

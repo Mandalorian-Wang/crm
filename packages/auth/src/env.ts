@@ -59,6 +59,7 @@ const appUrl = appUrls[0] ?? DEFAULT_APP_URL;
 export const env = {
 	apiUrl,
 	appUrl,
+	linear: pair("LINEAR_CLIENT_ID", "LINEAR_CLIENT_SECRET"),
 	google: googleCredentials(),
 	microsoft: microsoftCredentials(),
 	slack: slackCredentials(),
@@ -80,3 +81,7 @@ export function isSlackConfigured(): boolean {
 }
 
 export { apiUrl, appUrl };
+
+export function isLinearConfigured(): boolean {
+	return env.linear !== undefined && Boolean(process.env.LINEAR_WORKSPACE_ID);
+}
