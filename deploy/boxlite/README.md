@@ -141,3 +141,7 @@ The billing job reads `/v1/billing/usage` using a fixed UTC month-to-date snapsh
 GitHub restricts Stargazer listings to repository admins and collaborators under its July 2026 access policy. Configure a dedicated `GITHUB_TOKEN` that covers `boxlite-ai/boxlite` and satisfies the current endpoint permissions. Check repository selection and organization approval when GitHub returns `403 Resource not accessible by personal access token`; a token alone does not establish access. See [GitHub Stargazers documentation](https://docs.github.com/en/rest/activity/starring#list-stargazers). Store the token in the private root `.env`, upload the environment, and restart sync. Never copy a personal GitHub CLI token into the server. A failed source remains FAILED in `importRun` and does not block other sources.
 
 Better Auth 1.7 uses `/api/auth/callback/slack` for the Slack OAuth redirect. Update the Slack application redirect allow-list when enabling this optional integration.
+
+## Pause GitHub imports
+
+`GITHUB_SYNC_ENABLED=false` disables GitHub imports, including `sync --force`. The dev deployment currently uses this setting at the user's request. Cloud and billing jobs continue on their existing daily schedule. Existing contacts and the GitHub tab remain available. To resume, set `GITHUB_SYNC_ENABLED=true` after confirming token access, upload the private environment and restart the sync worker.

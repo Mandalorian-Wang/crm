@@ -9,6 +9,7 @@ export async function runSource(
 	source: "cloud" | "github" | "billing",
 	force = false,
 ) {
+	if (source === "github" && !SYNC.githubEnabled) return;
 	return db.$transaction(
 		async (lock) => {
 			const acquired = await lock.$queryRaw<{ acquired: boolean }[]>(

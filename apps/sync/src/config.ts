@@ -1,6 +1,7 @@
 import "@crm/env/load";
 
 export const SYNC = {
+	githubEnabled: process.env.GITHUB_SYNC_ENABLED === "true",
 	backofficeOrigin:
 		process.env.BACKOFFICE_API_ORIGIN || "https://api.backoffice.boxlite.ai",
 	githubRepository: process.env.GITHUB_STAR_REPOSITORY || "boxlite-ai/boxlite",
