@@ -1,3 +1,4 @@
+import { REQUEST_IMAGES, requestImage } from "@crm/validation/crm-request";
 import { z } from "zod";
 
 export const linearCustomer = z.object({
@@ -51,6 +52,7 @@ export const linearRequestInput = z.object({
 	requestId: z.uuid(),
 	title: z.string().trim().min(1).max(200),
 	content: z.string().trim().min(1).max(20000),
+	images: z.array(requestImage).max(REQUEST_IMAGES.maxCount).optional(),
 });
 export const linearRequestOutput = z.object({
 	id: z.string(),

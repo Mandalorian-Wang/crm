@@ -46,6 +46,9 @@ export async function linearRequest<T>(
 	query: string,
 	variables: {
 		id?: string;
+		contentType?: string;
+		filename?: string;
+		size?: number;
 		input?: {
 			id: string;
 			title: string;
@@ -88,7 +91,7 @@ export async function linearRequest<T>(
 		throw new BadGatewayException(
 			response.status === 429
 				? "Linear rate limit reached. Try again later."
-				: "Linear rejected the request. Check the API key and its read permissions.",
+				: "Linear rejected the request. Check the API key and its permissions.",
 		);
 	const envelope = z.object({
 		data: z.unknown().optional(),
@@ -102,7 +105,7 @@ export async function linearRequest<T>(
 	}
 	if (raw.errors?.length)
 		throw new BadGatewayException(
-			"Linear could not read this customer data. Check the ID and key permissions.",
+			"Linear could not complete the request. Check the input and key permissions.",
 		);
 	const scope = z
 		.object({ organization: z.object({ urlKey: z.string() }) })

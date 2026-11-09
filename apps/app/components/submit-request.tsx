@@ -13,9 +13,11 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
 import { Textarea } from "@crm/ui/components/textarea";
+import type { RequestImage } from "@crm/validation/crm-request";
 import { useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useTRPC } from "@/lib/trpc/client";
+import { RequestImages } from "./request-images";
 
 export function SubmitRequest() {
 	const trpc = useTRPC();
@@ -25,37 +27,40 @@ export function SubmitRequest() {
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [requestId, setRequestId] = useState<string | null>(null);
+	const [images, setImages] = useState<RequestImage[]>([]);
+	const [readingImages, setReadingImages] = useState(false);
 	const submit = useMutation(trpc.linear.submitRequest.mutationOptions());
+	const busy = submit.isPending || readingImages;
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={(next) => {
-				if (!submit.isPending) setOpen(next);
+				if (!busy) setOpen(next);
 			}}
 		>
 			<DialogTrigger asChild>
 				<Button variant="outline" size="sm">
-					提需求
+					Submit request
 				</Button>
 			</DialogTrigger>
-			<DialogContent>
+			<DialogContent scrollable showCloseButton={!busy}>
 				<DialogHeader>
-					<DialogTitle>提交 CRM 需求</DialogTitle>
+					<DialogTitle>Submit a CRM request</DialogTitle>
 					<DialogDescription>
-						提交到 Linear 的 Internal CRM system 项目，自动添加 CRM
-						标签并记录提交人。
+						Send feedback to the Internal CRM system project in Linear. Your
+						request will include the CRM label and your name.
 					</DialogDescription>
 				</DialogHeader>
 				{submit.data ? (
 					<div className="flex flex-col gap-3">
-						<p>提交成功：{submit.data.identifier}</p>
+						<p>Request submitted: {submit.data.identifier}</p>
 						<Button asChild variant="outline">
 							<a
 								href={submit.data.url}
 								target="_blank"
 								rel="noopener noreferrer"
 							>
-								在 Linear 查看
+								View in Linear
 							</a>
 						</Button>
 						<Button
@@ -64,9 +69,10 @@ export function SubmitRequest() {
 								setTitle("");
 								setContent("");
 								setRequestId(null);
+								setImages([]);
 							}}
 						>
-							再提一个需求
+							Submit another request
 						</Button>
 					</div>
 				) : (
@@ -75,54 +81,64 @@ export function SubmitRequest() {
 							event.preventDefault();
 							const id = requestId ?? crypto.randomUUID();
 							setRequestId(id);
-							submit.mutate({ requestId: id, title, content });
+							submit.mutate({ requestId: id, title, content, images });
 						}}
 					>
 						<FieldGroup>
 							<Field>
-								<FieldLabel htmlFor={titleId}>标题</FieldLabel>
+								<FieldLabel htmlFor={titleId}>Title</FieldLabel>
 								<Input
 									id={titleId}
 									required
 									maxLength={200}
 									value={title}
-									disabled={submit.isPending}
+									disabled={busy}
 									onChange={(event) => setTitle(event.target.value)}
-									placeholder="简述你希望改进的功能"
+									placeholder="What would you like to improve?"
 								/>
 							</Field>
 							<Field>
-								<FieldLabel htmlFor={contentId}>内容</FieldLabel>
+								<FieldLabel htmlFor={contentId}>Description</FieldLabel>
 								<Textarea
 									id={contentId}
 									required
 									maxLength={20000}
 									rows={7}
-									disabled={submit.isPending}
+									disabled={busy}
 									value={content}
 									onChange={(event) => setContent(event.target.value)}
-									placeholder="描述使用场景、遇到的问题和期望效果"
+									placeholder="Describe the use case, the problem, and your expected outcome."
 								/>
 							</Field>
+							<RequestImages
+								images={images}
+								onChange={setImages}
+								disabled={busy}
+								onReading={setReadingImages}
+							/>
 							{submit.error ? (
-								<p role="alert">{submit.error.message}。内容已保留，可重试。</p>
+								<p role="alert">
+									{submit.error.message} Your draft is preserved. Please retry.
+								</p>
 							) : null}
 							<DialogFooter>
 								<Button
 									type="button"
 									variant="outline"
-									disabled={submit.isPending}
+									disabled={busy}
 									onClick={() => setOpen(false)}
 								>
-									取消
+									Cancel
 								</Button>
 								<Button
 									type="submit"
-									disabled={
-										submit.isPending || !title.trim() || !content.trim()
-									}
+									disabled={busy || !title.trim() || !content.trim()}
 								>
-									{submit.isPending ? "提交中…" : "提交需求"}
+									{readingImages
+										? "Reading images…"
+										: submit.isPending
+											? "Submitting…"
+											: "Submit request"}
 								</Button>
 							</DialogFooter>
 						</FieldGroup>

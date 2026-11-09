@@ -1,6 +1,7 @@
 export const LINEAR = {
 	endpoint: "https://api.linear.app/graphql",
 	timeoutMs: 15_000,
+	uploadTimeoutMs: 60_000,
 	pageSize: 50,
 	maxPages: 100,
 	fields: {

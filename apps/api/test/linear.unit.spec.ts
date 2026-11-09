@@ -61,7 +61,7 @@ describe("Linear customer integration", () => {
 			);
 		await expect(
 			linearRequest("query", {}, z.object({ result: z.string() })),
-		).rejects.toThrow("Linear could not read");
+		).rejects.toThrow("Linear could not complete");
 		await expect(
 			linearRequest("query", {}, z.object({ result: z.string() })),
 		).rejects.toThrow("different workspace");

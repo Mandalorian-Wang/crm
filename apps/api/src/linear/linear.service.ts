@@ -18,6 +18,7 @@ import {
 } from "./linear.contracts";
 import { customerReference, linearRequest } from "./linear-client";
 import { LINEAR } from "./linear-config";
+import { uploadRequestImages } from "./linear-upload";
 
 @Injectable()
 export class LinearService {
@@ -31,10 +32,18 @@ export class LinearService {
 		const teamId = process.env.LINEAR_CRM_TEAM_ID;
 		const labelId = process.env.LINEAR_CRM_LABEL_ID;
 		if (!projectId || !teamId || !labelId)
-			throw new ServiceUnavailableException("需求提交尚未配置完成。");
+			throw new ServiceUnavailableException(
+				"Request submission is not configured.",
+			);
 		const hex = createHash("sha256")
 			.update(
-				JSON.stringify([user.id, input.requestId, input.title, input.content]),
+				JSON.stringify([
+					user.id,
+					input.requestId,
+					input.title,
+					input.content,
+					...(input.images?.length ? [input.images] : []),
+				]),
 			)
 			.digest("hex");
 		const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
@@ -48,6 +57,7 @@ export class LinearService {
 		};
 		const existing = await lookup();
 		if (existing) return existing;
+		const attachments = await uploadRequestImages(input.images ?? []);
 		try {
 			const result = await linearRequest(
 				`mutation CreateRequest($input: IssueCreateInput!) { issueCreate(input:$input) { success issue { id identifier url } } }`,
@@ -55,7 +65,7 @@ export class LinearService {
 					input: {
 						id,
 						title: input.title,
-						description: `${input.content}\n\n---\nSubmitted from BoxLite CRM by ${user.name} (${user.email}).`,
+						description: `${input.content}${attachments ? `\n\n${attachments}` : ""}\n\n---\nSubmitted from BoxLite CRM by ${user.name} (${user.email}).`,
 						projectId,
 						teamId,
 						labelIds: [labelId],
@@ -70,7 +80,9 @@ export class LinearService {
 				true,
 			);
 			if (!result.issueCreate.success || !result.issueCreate.issue)
-				throw new BadGatewayException("Linear 未确认需求已创建，请重试。");
+				throw new BadGatewayException(
+					"Linear did not confirm request creation. Please retry.",
+				);
 			return result.issueCreate.issue;
 		} catch (error) {
 			const recovered = await lookup();

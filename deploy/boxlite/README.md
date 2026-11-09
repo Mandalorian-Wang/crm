@@ -202,3 +202,9 @@ Configure `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET` and `LINEAR_WORKSPACE_ID` i
 The header request form accepts title and content. The server chooses `LINEAR_CRM_PROJECT_ID`, `LINEAR_CRM_TEAM_ID` and `LINEAR_CRM_LABEL_ID`; clients cannot override these. The shared `LINEAR_API_KEY` needs permission to create issues. The form records the authenticated submitter, keeps failed drafts and returns the created issue link. Repeated submission uses a deterministic issue UUID, including the submitter and draft content, to recover from lost responses without duplicate issues.
 
 Billing windows retain their original UTC boundaries in storage. The UI converts them to Asia/Shanghai and displays minutes, with an explicit timezone. Billing update times include hours and minutes.
+
+### CRM requests with images
+
+The header's **Submit request** form uses English labels and messages. Signed-in users can attach up to three PNG, JPEG, GIF or WebP images, each at most 2 MB. The API validates the payload, uploads the images to Linear's private storage, and embeds the resulting URLs in the issue description. The configured project, team and CRM label stay server-controlled.
+
+The API key stays on the server. Image previews and failed submissions remain in the open page's draft; refreshing the page clears that draft. Retrying an unchanged successful submission returns the existing issue. Nginx allows a 20 MB body and a 300-second upstream response wait for image submissions. Deploy the updated Nginx configuration and reload Nginx when upgrading.
