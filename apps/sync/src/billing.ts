@@ -1,4 +1,4 @@
-import { db } from "@crm/db";
+import { db, Prisma } from "@crm/db";
 import { z } from "zod";
 import { SYNC } from "./config";
 import { setField } from "./fields";
@@ -80,6 +80,19 @@ export async function syncBilling(): Promise<number> {
 		if (!company || company.archivedAt) continue;
 		const amounts = totals.get(ref.externalId);
 		await db.$transaction(async (tx) => {
+			const usd = amounts?.get("USD");
+			if (usd !== undefined) {
+				await setField(tx, "COMPANY", ref.recordId, "cloud_settled_usage_usd", {
+					number: new Prisma.Decimal(moneyFromMinor("USD", usd).slice(4)),
+				});
+			} else {
+				await tx.fieldValue.deleteMany({
+					where: {
+						companyId: ref.recordId,
+						field: { key: "cloud_settled_usage_usd", entity: "COMPANY" },
+					},
+				});
+			}
 			await setField(tx, "COMPANY", ref.recordId, "cloud_settled_usage_mtd", {
 				text: amounts
 					? [...amounts]

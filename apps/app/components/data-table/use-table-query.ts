@@ -122,10 +122,14 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 		setFilter: (id, selected) => {
 			if (id.startsWith(FIELD_FILTER_PREFIX)) {
 				const key = id.slice(FIELD_FILTER_PREFIX.length);
-				const nextFields: FieldFilters = { ...fields };
-				if (selected.length === 0) delete nextFields[key];
-				else nextFields[key] = selected;
-				setValues({ fields: nextFields, page: 1 });
+				rawSetState((old) => {
+					const nextFields: FieldFilters = {
+						...rawValuesSchema.parse(old).fields,
+					};
+					if (selected.length === 0) delete nextFields[key];
+					else nextFields[key] = selected;
+					return { fields: nextFields, page: 1 } as NuqsValues;
+				});
 				return;
 			}
 

@@ -58,7 +58,8 @@ export function useFieldColumns<Row extends WithFields>(
 				header: field.label,
 				sortable: entity === "COMPANY" && field.key === "cloud_registered_at",
 				width: "w-[12%]",
-				hideBelow: "lg" as const,
+				hideBelow:
+					field.key === "cloud_settled_usage_mtd" ? undefined : ("lg" as const),
 				cell: (row: Row) => (
 					<span className="truncate">
 						{render(field.type, row.fields[field.key] ?? null, byId)}

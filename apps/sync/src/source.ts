@@ -48,12 +48,16 @@ export type Customer = z.infer<typeof customerSchema>;
 export type Member = z.infer<typeof memberSchema>;
 export type Star = z.infer<typeof starsSchema>[number];
 
+let nextRequestAt = 0;
+
 export async function request(
 	url: URL,
 	headers: HeadersInit,
 ): Promise<Response> {
 	for (let attempt = 0; attempt < 4; attempt++) {
-		await Bun.sleep(SYNC.requestIntervalMs);
+		const wait = Math.max(0, nextRequestAt - Date.now());
+		nextRequestAt = Date.now() + wait + SYNC.requestIntervalMs;
+		await Bun.sleep(wait);
 		const response = await fetch(url, {
 			headers,
 			redirect: "error",
@@ -89,12 +93,19 @@ export function backofficeHeaders(): HeadersInit {
 	return { Authorization: `Bearer ${key}` };
 }
 
-export async function* customers(): AsyncGenerator<Customer> {
+export async function* customers(window?: {
+	start: Date;
+	end: Date;
+}): AsyncGenerator<Customer> {
 	let cursor: string | null = null;
 	const cursors = new Set<string>();
 	for (let page = 0; page < SYNC.maxPages; page++) {
 		const url = new URL("/v1/customers", SYNC.backofficeOrigin);
 		url.searchParams.set("limit", "200");
+		if (window) {
+			url.searchParams.set("createdFrom", window.start.toISOString());
+			url.searchParams.set("createdTo", window.end.toISOString());
+		}
 		if (cursor) url.searchParams.set("cursor", cursor);
 		const result = customerPage.parse(
 			await (await request(url, backofficeHeaders())).json(),
@@ -180,6 +191,7 @@ export async function customerSnapshot(organizationId: string) {
 		SYNC.backofficeOrigin,
 	);
 	url.searchParams.set("sectionLimit", "200");
+	url.searchParams.set("include", "activation");
 	return snapshotSchema.parse(
 		await (await request(url, backofficeHeaders())).json(),
 	);

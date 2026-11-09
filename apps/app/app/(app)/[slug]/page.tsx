@@ -20,7 +20,7 @@ export default function OverviewPage() {
 				<PageShellHeading>
 					<PageShellTitle>Cloud overview</PageShellTitle>
 					<PageShellDescription>
-						Yesterday’s acquisition and first-day Box usage.
+						Cloud acquisition and Box usage by reporting window.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>

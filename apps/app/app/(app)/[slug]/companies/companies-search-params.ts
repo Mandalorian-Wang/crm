@@ -2,7 +2,7 @@ import { createListSearchParams } from "@/components/data-table/list-search-para
 
 export const companiesSearchParams = createListSearchParams({
 	tabId: "favorites",
-	defaultSort: "createdAt",
+	defaultSort: "field:cloud_registered_at",
 	defaultDir: "desc",
 	facetIds: ["owner", "industry", "enrichment", "activity"] as const,
 });

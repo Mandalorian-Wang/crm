@@ -223,7 +223,7 @@ export function FieldEditor({
 
 	const key = field?.key ?? fieldKeyFromLabel(draft.label);
 	const saving = create.isPending || update.isPending;
-	const filterable = draft.type === "SELECT" || draft.type === "USER";
+	const filterable = ["SELECT", "USER", "NUMBER", "DATE"].includes(draft.type);
 
 	const save = () => {
 		const payload = {

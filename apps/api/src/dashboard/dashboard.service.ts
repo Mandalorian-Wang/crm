@@ -4,6 +4,7 @@ import { activityMeta } from "@crm/validation/activity-meta";
 import {
 	CLOUD_OVERVIEW as CLOUD_DASHBOARD,
 	cloudOverviewEvidence,
+	cloudOverviewKey,
 	previousShanghaiDay,
 } from "@crm/validation/cloud-overview";
 import { Injectable } from "@nestjs/common";
@@ -42,12 +43,29 @@ export class DashboardService {
 		private readonly conversion: ConversionService,
 	) {}
 
-	async cloudOverview(page: number, now = new Date()) {
-		const { start, end, date } = previousShanghaiDay(now);
+	async cloudOverview(page: number, now = new Date(), days: 1 | 7 | 15 = 1) {
+		const { start, end, date } = previousShanghaiDay(now, days);
 		const report = await this.db.cloudDailyOverview.findUnique({
-			where: { date },
+			where: { date: cloudOverviewKey(date, days) },
 		});
 		const evidence = report ? cloudOverviewEvidence.parse(report.evidence) : {};
+		const memberships = await this.db.importedRecord.findMany({
+			where: { source: "cloud", kind: "deal" },
+			select: { externalId: true },
+		});
+		for (const ref of memberships) {
+			const separator = ref.externalId.indexOf(":");
+			if (separator < 0) continue;
+			const entry = evidence[ref.externalId.slice(0, separator)];
+			if (entry)
+				entry.memberIds = [
+					...new Set([
+						...(entry.memberIds ?? []),
+						ref.externalId.slice(separator + 1),
+					]),
+				];
+		}
+
 		const entries = Object.entries(evidence);
 		const memberIds = [
 			...new Set(entries.flatMap(([, entry]) => entry.memberIds ?? [])),
@@ -126,10 +144,13 @@ export class DashboardService {
 			([, entry]) => entry.createdBox === null,
 		).length;
 		const pendingMemberships = entries.filter(
-			([, entry]) => entry.memberIds === null,
+			([, entry]) =>
+				entry.memberIds === null ||
+				(entry.memberCount ?? 0) > entry.memberIds.length,
 		).length;
 		const rate = entries.length ? active / entries.length : null;
 		return {
+			days,
 			date,
 			timezone: CLOUD_DASHBOARD.timezone,
 			from: start.toISOString(),

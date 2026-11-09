@@ -6,10 +6,6 @@ import { useMemo } from "react";
 import { useTRPC } from "@/lib/trpc/client";
 import type { FieldEntity } from "./fields-entity";
 
-/**
- * SELECT and USER admin fields become filter facets automatically — no
- * per-field opt-in, mirroring `fields.filterableFieldsFor` on the API.
- */
 export function useFieldFacets(
 	entity: FieldEntity,
 	facetCounts: Record<string, Record<string, number>> | undefined,
@@ -22,6 +18,14 @@ export function useFieldFacets(
 		if (!fields.data) return [];
 
 		return fields.data.map((field) => {
+			if (field.type === "NUMBER" || field.type === "DATE")
+				return {
+					id: `field:${field.key}`,
+					label: field.label,
+					options: [],
+					range:
+						field.type === "NUMBER" ? ("number" as const) : ("date" as const),
+				};
 			const counts = facetCounts?.[`field:${field.key}`];
 			const options =
 				field.type === "USER"

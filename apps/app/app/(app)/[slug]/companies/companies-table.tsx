@@ -24,6 +24,7 @@ import { useFieldFacets } from "@/components/crm/fields/field-facets";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
+import { AssignedToMe } from "@/components/data-table/assigned-to-me";
 import { ListSearch } from "@/components/data-table/list-search";
 import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
 import { useColumnPreferences } from "@/components/data-table/use-column-preferences";
@@ -45,7 +46,7 @@ type CompanyRow = RouterOutputs["companies"]["list"]["rows"][number];
 const COLUMNS: DataTableColumn<CompanyRow>[] = [
 	{
 		id: "name",
-		header: "Company",
+		header: "Cloud organization",
 		sortable: true,
 		hideable: false,
 		width: "w-[26%]",
@@ -107,25 +108,12 @@ const COLUMNS: DataTableColumn<CompanyRow>[] = [
 	},
 	{
 		id: "deals",
-		header: "Open deals",
+		header: "Open sales opportunities",
+		defaultHidden: true,
 		sortable: true,
 		align: "right",
 		width: "w-[9%]",
 		cell: (row) => <span className="tabular-nums">{row.openDealCount}</span>,
-	},
-	{
-		id: "createdAt",
-		header: "Created",
-		label: "Created date",
-		sortable: true,
-		align: "right",
-		width: "w-[10%]",
-		defaultHidden: true,
-		cell: (row) => (
-			<span className="text-muted-foreground">
-				<LocalRelativeTime date={row.createdAt} />
-			</span>
-		),
 	},
 	{
 		id: "lastActivity",
@@ -251,7 +239,25 @@ export function CompaniesTable() {
 		() =>
 			input.archived
 				? [...COLUMNS, ARCHIVED_COLUMN, ...fieldColumns]
-				: [...COLUMNS, ...fieldColumns],
+				: [
+						...COLUMNS.filter((c) => c.id === "name"),
+						...fieldColumns.filter((c) =>
+							[
+								"field:cloud_settled_usage_mtd",
+								"field:cloud_box_count",
+								"field:cloud_registered_at",
+							].includes(c.id),
+						),
+						...COLUMNS.filter((c) => c.id !== "name"),
+						...fieldColumns.filter(
+							(c) =>
+								![
+									"field:cloud_settled_usage_mtd",
+									"field:cloud_box_count",
+									"field:cloud_registered_at",
+								].includes(c.id),
+						),
+					],
 		[fieldColumns, input.archived],
 	);
 
@@ -262,6 +268,7 @@ export function CompaniesTable() {
 			search={<ListSearch placeholder="Search companies by name or domain…" />}
 			actions={
 				<>
+					<AssignedToMe query={query} onChange={selection.clear} />
 					<Button
 						variant={query.tab === "mine" ? "contrast" : "outline"}
 						size="sm"

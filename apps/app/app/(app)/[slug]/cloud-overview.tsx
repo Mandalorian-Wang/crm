@@ -15,7 +15,7 @@ import { Spinner } from "@crm/ui/components/spinner";
 import { StatCard } from "@crm/ui/components/stat-card";
 import { TableCell } from "@crm/ui/components/table";
 import { useQuery } from "@tanstack/react-query";
-import { parseAsInteger, useQueryState } from "nuqs";
+import { parseAsInteger, parseAsNumberLiteral, useQueryStates } from "nuqs";
 import { RecordLink } from "@/components/crm/record-sheet/record-link";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -28,12 +28,22 @@ const COLUMNS = [
 
 export function CloudOverview() {
 	const trpc = useTRPC();
-	const [rawPage, setPage] = useQueryState(
-		"inboundPage",
-		parseAsInteger.withDefault(1),
-	);
+	const [{ inboundPage: rawPage, days }, setWindow] = useQueryStates({
+		inboundPage: parseAsInteger.withDefault(1),
+		days: parseAsNumberLiteral([1, 7, 15] as const).withDefault(1),
+	});
+	const setPage = (inboundPage: number) => setWindow({ inboundPage });
 	const page = Math.max(1, Math.min(100000, rawPage));
-	const query = useQuery(trpc.dashboard.cloudOverview.queryOptions({ page }));
+	const query = useQuery({
+		...trpc.dashboard.cloudOverview.queryOptions({ page, days }),
+		refetchInterval: (q) =>
+			q.state.data?.pendingMemberships ||
+			q.state.data?.metricsStatus === "PENDING"
+				? 30000
+				: false,
+	});
+	const label = days === 1 ? "Yesterday" : `Last ${days} days`;
+
 	const summary = query.data;
 	if (query.isError)
 		return (
@@ -58,20 +68,38 @@ export function CloudOverview() {
 	const pages = Math.max(1, Math.ceil(summary.total / summary.pageSize));
 	return (
 		<div className="flex flex-col gap-6">
+			<fieldset className="flex flex-wrap gap-2" aria-label="Statistics window">
+				{([1, 7, 15] as const).map((value) => (
+					<Button
+						key={value}
+						size="sm"
+						variant={days === value ? "contrast" : "outline"}
+						aria-pressed={days === value}
+						onClick={() => setWindow({ days: value, inboundPage: 1 })}
+					>
+						{value === 1 ? "Yesterday" : `Last ${value} days`}
+					</Button>
+				))}
+			</fieldset>
 			<p className="text-sm text-muted-foreground">
-				Yesterday · {summary.date} · Asia/Shanghai · 00:00–24:00
+				{label} · {summary.date} →{" "}
+				{new Date(new Date(summary.to).getTime() - 1).toLocaleDateString(
+					"en-CA",
+					{ timeZone: summary.timezone },
+				)}{" "}
+				· Asia/Shanghai · complete calendar days
 			</p>
 			<DashboardGrid columns={2}>
 				<Card>
 					<StatCard
-						label="New Cloud users yesterday"
+						label={`New Cloud users · ${label}`}
 						value={summary.newCloudUsers ?? "—"}
 						description="Cloud users are counted as organizations"
 					/>
 				</Card>
 				<Card>
 					<StatCard
-						label="Created a Box yesterday"
+						label={`Created a Box · ${label}`}
 						value={
 							summary.activationRate !== null
 								? `${(summary.activationRate * 100).toFixed(1)}%`
@@ -84,15 +112,15 @@ export function CloudOverview() {
 							summary.newCloudUsers === null
 								? "Awaiting daily sync"
 								: summary.newCloudUsers === 0
-									? "No new Cloud organizations yesterday"
+									? "No new Cloud organizations in this window"
 									: `${summary.createdBoxUsers} of ${summary.newCloudUsers} new organizations confirmed; ${summary.unknownOrganizations} unconfirmed`
 						}
 					/>
 				</Card>
 			</DashboardGrid>
 			<p className="text-xs text-muted-foreground">
-				Organizations created yesterday, and the share that created a Box on the
-				same day.
+				Organizations created in this window, and the share that created a Box
+				within the same window.
 				{summary.unknownOrganizations > 0
 					? " The displayed rate is a lower bound; complete Box creation history is unavailable."
 					: ""}
@@ -102,10 +130,10 @@ export function CloudOverview() {
 			</p>
 			<Card>
 				<CardHeader>
-					<CardTitle>New inbound users yesterday</CardTitle>
+					<CardTitle>New inbound users · {label}</CardTitle>
 					<CardDescription>
 						{summary.total} unique inbound users associated with organizations
-						created on {summary.date}.
+						created in this window.
 						{summary.pendingMemberships > 0
 							? ` Membership sync pending for ${summary.pendingMemberships} organizations.`
 							: ""}
@@ -147,7 +175,7 @@ export function CloudOverview() {
 								? summary.metricsStatus === "PENDING" ||
 									summary.pendingMemberships > 0
 									? "Awaiting daily sync."
-									: "No inbound users linked to yesterday’s new organizations."
+									: "No inbound users linked to new organizations in this window."
 								: "No users on this page. Return to the previous page."}
 						</CardPanelEmpty>
 					)}

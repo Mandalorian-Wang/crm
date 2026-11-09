@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { db } from "@crm/db";
 import {
+	cloudOverviewKey,
 	createdBoxInWindow,
 	previousShanghaiDay,
 } from "@crm/validation/cloud-overview";
@@ -75,7 +76,9 @@ beforeAll(async () => {
 });
 afterAll(async () => {
 	await db.cloudDailyOverview.deleteMany({
-		where: { date: { in: [date, "1999-01-01"] } },
+		where: {
+			date: { in: [date, "1999-01-01", "2000-12-26:7", "2000-12-18:15"] },
+		},
 	});
 	await db.importedRecord.deleteMany({
 		where: { externalId: { startsWith: prefix } },
@@ -104,7 +107,7 @@ test("later creation is unknown rather than falsely inactive", () => {
 		createdBoxInWindow(new Date(end.getTime() - 1).toISOString(), start, end),
 	).toBe(true);
 	expect(createdBoxInWindow(end.toISOString(), start, end)).toBeNull();
-	expect(createdBoxInWindow(null, start, end)).toBe(false);
+	expect(createdBoxInWindow(null, start, end)).toBeNull();
 });
 test("cohort membership ignores CRM import date, deduplicates users, and paginates", async () => {
 	const first = await dashboard.cloudOverview(1, now);
@@ -139,4 +142,31 @@ test("unknown activity stays separate from exact rates and zero denominators", a
 	);
 	expect(empty.newCloudUsers).toBe(0);
 	expect(empty.activationRate).toBeNull();
+});
+
+test("7 and 15 day windows have independent reports and exclude today", async () => {
+	for (const days of [7, 15] as const) {
+		const window = previousShanghaiDay(now, days);
+		expect(window.end).toEqual(end);
+		expect(window.end.getTime() - window.start.getTime()).toBe(days * 86400000);
+		await db.cloudDailyOverview.create({
+			data: {
+				date: cloudOverviewKey(window.date, days),
+				evidence: {
+					[`${prefix}-org-0`]: {
+						createdAt: window.start.toISOString(),
+						createdBox: true,
+						memberIds,
+						memberCount: 24,
+					},
+				},
+			},
+		});
+		const report = await dashboard.cloudOverview(1, now, days);
+		expect(report.days).toBe(days);
+		expect(report.from).toBe(window.start.toISOString());
+		expect(report.newCloudUsers).toBe(1);
+		expect(report.activationRate).toBe(1);
+		expect(report.total).toBe(23);
+	}
 });

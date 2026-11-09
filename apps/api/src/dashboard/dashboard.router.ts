@@ -21,7 +21,7 @@ export class DashboardRouter {
 
 	@Query({ input: cloudDashboardInput, output: cloudDashboardOutput })
 	async cloudOverview(@Input() input: z.infer<typeof cloudDashboardInput>) {
-		return this.dashboard.cloudOverview(input.page);
+		return this.dashboard.cloudOverview(input.page, new Date(), input.days);
 	}
 
 	@Query({

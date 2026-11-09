@@ -20,6 +20,7 @@ import { useFieldFacets } from "@/components/crm/fields/field-facets";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
 import { useOpenRecord } from "@/components/crm/record-sheet/record-stack";
+import { AssignedToMe } from "@/components/data-table/assigned-to-me";
 import { ListSearch } from "@/components/data-table/list-search";
 import { SavedViewsMenu } from "@/components/data-table/saved-views-menu";
 import { useColumnPreferences } from "@/components/data-table/use-column-preferences";
@@ -272,6 +273,7 @@ export function ContactsTable() {
 			search={<ListSearch placeholder="Search by name, email or company…" />}
 			actions={
 				<>
+					<AssignedToMe query={query} onChange={selection.clear} />
 					<SavedViewsMenu entity="CONTACT" table={table} />
 					<Button
 						variant={input.archived ? "contrast" : "outline"}

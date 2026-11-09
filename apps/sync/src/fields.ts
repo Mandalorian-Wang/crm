@@ -3,6 +3,13 @@ import { db, type FieldEntity, type Prisma } from "@crm/db";
 const FIELDS = [
 	[
 		"COMPANY",
+		"cloud_settled_usage_usd",
+		"Settled usage (USD, this month)",
+		"NUMBER",
+		false,
+	],
+	[
+		"COMPANY",
 		"cloud_settled_usage_mtd",
 		"Settled usage this month",
 		"TEXT",
@@ -46,6 +53,19 @@ export async function ensureFields() {
 		},
 		data: { label: "Cloud organization created at" },
 	});
+	await db.fieldDefinition.updateMany({
+		where: {
+			entity: "COMPANY",
+			key: {
+				in: [
+					"cloud_box_count",
+					"cloud_registered_at",
+					"cloud_settled_usage_usd",
+				],
+			},
+		},
+		data: { showOnFilter: true },
+	});
 	for (const [
 		position,
 		[entity, key, label, type, showOnTable],
@@ -58,6 +78,13 @@ export async function ensureFields() {
 				label,
 				type,
 				agentFilled: false,
+				showOnFilter:
+					entity === "COMPANY" &&
+					[
+						"cloud_box_count",
+						"cloud_registered_at",
+						"cloud_settled_usage_usd",
+					].includes(key),
 				showOnSheet: true,
 				showOnTable,
 				position,
@@ -72,7 +99,10 @@ export async function setField(
 	entity: FieldEntity,
 	recordId: string,
 	key: string,
-	value: { text: string } | { number: number } | { date: Date },
+	value:
+		| { text: string }
+		| { number: number | Prisma.Decimal }
+		| { date: Date },
 ) {
 	const field = await tx.fieldDefinition.findUniqueOrThrow({
 		where: { entity_key: { entity, key } },

@@ -1,5 +1,6 @@
 import { ActivityType, DealStage } from "@crm/db";
 import { activityMeta } from "@crm/validation/activity-meta";
+import { cloudWindowDays } from "@crm/validation/cloud-overview";
 import { z } from "zod";
 
 const DASHBOARD_SCOPES = ["me", "everyone"] as const;
@@ -113,10 +114,12 @@ export const dashboardSummaryOutput = z.object({
 });
 
 export const cloudDashboardInput = z.object({
+	days: cloudWindowDays.default(1),
 	page: z.number().int().min(1).max(100000).default(1),
 });
 
 export const cloudDashboardOutput = z.object({
+	days: cloudWindowDays,
 	date: z.string(),
 	timezone: z.literal("Asia/Shanghai"),
 	from: z.string(),

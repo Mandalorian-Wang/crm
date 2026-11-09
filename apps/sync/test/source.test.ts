@@ -43,9 +43,20 @@ describe("import boundaries", () => {
 			),
 		);
 		const rows = [];
-		for await (const row of customers()) rows.push(row);
+		for await (const row of customers({
+			start: new Date("2026-11-01T00:00:00Z"),
+			end: new Date("2026-11-02T00:00:00Z"),
+		}))
+			rows.push(row);
 		expect(rows).toEqual([]);
 		expect(urls).toHaveLength(2);
+		expect(
+			urls.every(
+				(url) =>
+					new URL(url).searchParams.get("createdFrom") ===
+					"2026-11-01T00:00:00.000Z",
+			),
+		).toBe(true);
 		expect(
 			new URL(urls[1] ?? "https://invalid.test").searchParams.get("cursor"),
 		).toBe("opaque-next");

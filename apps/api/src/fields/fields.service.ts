@@ -479,12 +479,6 @@ export class FieldsService {
 		return byRecord;
 	}
 
-	/**
-	 * SELECT and USER fields are the only types with a fixed, small
-	 * vocabulary a facet can count, but only the ones an admin turned on
-	 * (`showOnFilter`) actually render — same opt-in as `showOnTable`, so the
-	 * filter bar doesn't fill up with every field ever created.
-	 */
 	async filters(entity: FieldEntity): Promise<SerializedField[]> {
 		const definitions = await this.filterableFieldsFor(entity);
 		return definitions.map(serializeField);
@@ -498,7 +492,7 @@ export class FieldsService {
 				entity,
 				archivedAt: null,
 				showOnFilter: true,
-				type: { in: ["SELECT", "USER"] },
+				type: { in: ["SELECT", "USER", "NUMBER", "DATE"] },
 			},
 			include: WITH_OPTIONS,
 			orderBy: { position: "asc" },
@@ -589,21 +583,38 @@ export class FieldsService {
 
 		return Object.entries(selected)
 			.filter(([, values]) => values.length > 0)
-			.flatMap(([key, values]) => {
-				const definition = byKey.get(key);
-				if (!definition) return [];
+			.flatMap<{ fieldValues: { some: Prisma.FieldValueWhereInput } }>(
+				([key, values]) => {
+					const definition = byKey.get(key);
+					if (!definition) return [];
+					if (definition.type === "NUMBER" || definition.type === "DATE") {
+						const range = parseFieldRange(definition.type, values);
+						return [
+							{
+								fieldValues: {
+									some: {
+										fieldId: definition.id,
+										...(definition.type === "DATE"
+											? { date: range as Prisma.DateTimeNullableFilter }
+											: { number: range as Prisma.DecimalNullableFilter }),
+									},
+								},
+							},
+						];
+					}
 
-				return [
-					{
-						fieldValues: {
-							some:
-								definition.type === "USER"
-									? { fieldId: definition.id, userId: { in: values } }
-									: { fieldId: definition.id, optionId: { in: values } },
+					return [
+						{
+							fieldValues: {
+								some:
+									definition.type === "USER"
+										? { fieldId: definition.id, userId: { in: values } }
+										: { fieldId: definition.id, optionId: { in: values } },
+							},
 						},
-					},
-				];
-			});
+					];
+				},
+			);
 	}
 
 	async applyValues(
@@ -648,4 +659,50 @@ function tableValue(
 	return (
 		definition.options.find((option) => option.id === value)?.label ?? null
 	);
+}
+
+type FieldRange = { gte?: string | Date; lte?: string | Date; lt?: Date };
+
+function parseFieldRange(type: "NUMBER" | "DATE", values: string[]) {
+	const range: FieldRange = {};
+	if (values.length > 2)
+		throw new BadRequestException("Use one minimum and one maximum per range.");
+	for (const value of values) {
+		const match = /^(min|max):(.*)$/.exec(value);
+		if (!match?.[2]) throw new BadRequestException("Invalid range filter.");
+		const key = match[1] === "min" ? "gte" : type === "DATE" ? "lt" : "lte";
+		if (range[key] !== undefined)
+			throw new BadRequestException("Duplicate range bound.");
+		const raw = match[2];
+		if (type === "NUMBER") {
+			if (!/^-?\d{1,20}(\.\d{1,4})?$/.test(raw))
+				throw new BadRequestException(
+					"Enter a number with at most four decimal places.",
+				);
+			range[match[1] === "min" ? "gte" : "lte"] = raw;
+		} else {
+			const parsed = new Date(`${raw}T00:00:00+08:00`);
+			if (
+				!/^\d{4}-\d{2}-\d{2}$/.test(raw) ||
+				!Number.isFinite(parsed.getTime()) ||
+				new Date(parsed.getTime() + 8 * 3600000).toISOString().slice(0, 10) !==
+					raw
+			)
+				throw new BadRequestException("Enter a valid calendar date.");
+			range[key] =
+				key === "lt" ? new Date(parsed.getTime() + 86400000) : parsed;
+		}
+	}
+	if (
+		type === "NUMBER" &&
+		range.gte !== undefined &&
+		range.lte !== undefined &&
+		new PrismaNamespace.Decimal(String(range.gte)).greaterThan(
+			String(range.lte),
+		)
+	)
+		throw new BadRequestException("Minimum must not exceed maximum.");
+	if (range.gte instanceof Date && range.lt && range.gte >= range.lt)
+		throw new BadRequestException("Start date must not follow end date.");
+	return range;
 }

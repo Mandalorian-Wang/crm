@@ -150,7 +150,12 @@ export class CompaniesService {
 					_count: {
 						select: {
 							contacts: true,
-							deals: { where: { stage: { in: [...OPEN_DEAL_STAGES] } } },
+							deals: {
+								where: {
+									archivedAt: null,
+									stage: { in: [...OPEN_DEAL_STAGES] },
+								},
+							},
 						},
 					},
 					lastActivityAt: true,

@@ -1,4 +1,5 @@
 "use client";
+import { DataTableRangeFilter } from "./data-table-range-filter";
 
 import ArrowDown from "@carbon/icons-react/es/ArrowDown";
 import ArrowsVertical from "@carbon/icons-react/es/ArrowsVertical";
@@ -71,6 +72,7 @@ export type DataTableColumn<TRow> = {
 };
 
 export type DataTableFacet = {
+    range?: "number" | "date";
 	id: string;
 	label: string;
 	options: { value: string; label: string }[];
@@ -170,6 +172,7 @@ function SortIndicator({
 
 function facetLabel(facet: DataTableFacet, selected: string[]): string {
 	if (selected.length === 0) return facet.label;
+    if (facet.range) return `${facet.label}: ${selected.map(v => v.replace("min:", "≥ ").replace("max:", "≤ ")).join(" · ")}`;
 	if (selected.length === 1) {
 		const option = facet.options.find((o) => o.value === selected[0]);
 		return option?.label ?? facet.label;
@@ -199,7 +202,7 @@ function FacetSubmenu({
 				)}
 			</DropdownMenuSubTrigger>
 			<DropdownMenuSubContent className="max-h-72 min-w-52 overflow-hidden">
-				{facet.searchable ? (
+				{facet.range ? <DataTableRangeFilter key={selected.join("|")} label={facet.label} type={facet.range} selected={selected} onChange={onChange} /> : facet.searchable ? (
 					<Command
 						shouldFilter={facet.onSearchChange === undefined}
 						className="max-h-72"
@@ -343,7 +346,7 @@ export function DataTable<TRow, TSub = unknown>({
 		() =>
 			(facets ?? []).filter(
 				(facet) =>
-					facet.options.length > 0 ||
+					facet.range || facet.options.length > 0 ||
 					facet.searchable ||
 					(query.filters[facet.id]?.length ?? 0) > 0,
 			),

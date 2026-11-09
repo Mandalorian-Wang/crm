@@ -1,6 +1,7 @@
 import { db } from "@crm/db";
 import {
 	cloudOverviewEvidence,
+	cloudOverviewKey,
 	createdBoxInWindow,
 	previousShanghaiDay,
 } from "@crm/validation/cloud-overview";
@@ -9,6 +10,7 @@ import { SYNC } from "./config";
 import { importCompany, importMember } from "./import";
 import {
 	backofficeHeaders,
+	type Customer,
 	customerSnapshot,
 	customers,
 	members,
@@ -16,60 +18,123 @@ import {
 } from "./source";
 
 export async function syncOverview(ownerId: string) {
-	const { start, end, date } = previousShanghaiDay(new Date());
-	const previous = await db.cloudDailyOverview.findUnique({ where: { date } });
-	const prior = previous ? cloudOverviewEvidence.parse(previous.evidence) : {};
-	const evidence: z.infer<typeof cloudOverviewEvidence> = {};
-	let failed = 0;
-	for await (const customer of customers()) {
+	const now = new Date();
+	const windows = await Promise.all(
+		([1, 7, 15] as const).map(async (days) => {
+			const window = previousShanghaiDay(now, days);
+			const key = cloudOverviewKey(window.date, days);
+			const previous = await db.cloudDailyOverview.findUnique({
+				where: { date: key },
+			});
+			return {
+				...window,
+				key,
+				prior: previous ? cloudOverviewEvidence.parse(previous.evidence) : {},
+				evidence: {} as z.infer<typeof cloudOverviewEvidence>,
+			};
+		}),
+	);
+	const widest = previousShanghaiDay(now, 15);
+	const directory = new Map<string, Customer>();
+	for await (const customer of customers(widest)) {
 		const createdAt = new Date(customer.createdAt);
-		if (createdAt < start || createdAt >= end) continue;
-		const companyId = await importCompany(customer, ownerId);
-		const old = prior[customer.organizationId];
-		const entry = {
-			createdAt: customer.createdAt,
-			createdBox: old?.createdBox ?? null,
-			memberIds: old?.memberIds ?? null,
-		};
-		evidence[customer.organizationId] = entry;
-		try {
-			const snapshot = await customerSnapshot(customer.organizationId);
-			if (entry.createdBox === null && snapshot.activation)
-				entry.createdBox = createdBoxInWindow(
-					snapshot.activation.lastBoxCreatedAt,
-					start,
-					end,
-				);
-			const memberIds: string[] = [];
-			for await (const member of members(customer.organizationId, snapshot)) {
-				if (companyId) await importMember(customer, member, companyId, ownerId);
-				memberIds.push(member.userId);
-			}
-			entry.memberIds = [...new Set(memberIds)];
-		} catch (error) {
-			if (error instanceof Error && /HTTP (401|403)/.test(error.message))
-				throw error;
-			failed++;
+		if (createdAt >= widest.start && createdAt < widest.end)
+			directory.set(customer.organizationId, customer);
+	}
+	const save = async () => {
+		for (const window of windows)
+			await db.cloudDailyOverview.upsert({
+				where: { date: window.key },
+				create: { date: window.key, evidence: window.evidence },
+				update: { evidence: window.evidence },
+			});
+	};
+	for (const customer of directory.values()) {
+		for (const window of windows) {
+			if (new Date(customer.createdAt) < window.start) continue;
+			const old = window.prior[customer.organizationId];
+			window.evidence[customer.organizationId] = {
+				createdAt: customer.createdAt,
+				createdBox: old?.createdBox === true ? true : null,
+				memberIds: old?.memberIds ?? [],
+				memberCount: customer.memberCount,
+			};
 		}
 	}
-	if (Object.values(evidence).some((entry) => entry.createdBox === null)) {
-		const active = await activeOrganizations(start, end).catch(() => null);
-		if (active) {
-			for (const [id, entry] of Object.entries(evidence))
-				if (entry.createdBox === null && active.has(id))
-					entry.createdBox = true;
-		}
-	}
-	await db.cloudDailyOverview.upsert({
-		where: { date },
-		create: { date, evidence },
-		update: { evidence },
+	const memberships = await db.importedRecord.findMany({
+		where: { source: "cloud", kind: "deal" },
+		select: { externalId: true },
 	});
+	for (const ref of memberships) {
+		const separator = ref.externalId.indexOf(":");
+		if (separator < 0) continue;
+		const orgId = ref.externalId.slice(0, separator),
+			userId = ref.externalId.slice(separator + 1);
+		for (const window of windows) {
+			const entry = window.evidence[orgId];
+			if (entry && userId)
+				entry.memberIds = [...new Set([...(entry.memberIds ?? []), userId])];
+		}
+	}
+
+	await save();
+	for (const window of windows) {
+		const active = await activeOrganizations(window.start, window.end).catch(
+			() => null,
+		);
+		if (active)
+			for (const [id, entry] of Object.entries(window.evidence))
+				if (active.has(id)) entry.createdBox = true;
+	}
+	await save();
+	let failed = 0;
+	const queue = [...directory.values()].filter(
+		(customer) =>
+			new Date(customer.createdAt) >= previousShanghaiDay(now).start,
+	);
+	for (let index = 0; index < queue.length; index += 2) {
+		await Promise.all(
+			queue.slice(index, index + 2).map(async (customer) => {
+				const companyId = await importCompany(customer, ownerId);
+				try {
+					const snapshot = await customerSnapshot(customer.organizationId);
+					for (const window of windows) {
+						const entry = window.evidence[customer.organizationId];
+						if (entry && entry.createdBox !== true && snapshot.activation)
+							entry.createdBox = createdBoxInWindow(
+								snapshot.activation.lastBoxCreatedAt,
+								window.start,
+								window.end,
+							);
+					}
+					const memberIds: string[] = [];
+					for await (const member of members(
+						customer.organizationId,
+						snapshot,
+					)) {
+						if (companyId)
+							await importMember(customer, member, companyId, ownerId);
+						memberIds.push(member.userId);
+					}
+					for (const window of windows) {
+						const entry = window.evidence[customer.organizationId];
+						if (entry) entry.memberIds = [...new Set(memberIds)];
+					}
+				} catch (error) {
+					if (error instanceof Error && /HTTP (401|403)/.test(error.message))
+						throw error;
+					failed++;
+				}
+			}),
+		);
+		if (index % 20 === 0) await save();
+	}
+	await save();
 	if (failed)
 		throw new Error(
 			`Overview sync incomplete for ${failed} organizations; retry scheduled.`,
 		);
-	return Object.keys(evidence).length;
+	return directory.size;
 }
 
 const usagePage = z.object({
