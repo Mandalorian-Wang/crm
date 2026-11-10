@@ -247,3 +247,13 @@ A deleted sandbox cannot supply its PostgreSQL data or its internal backups. Pre
 6. Run `python deploy/boxlite/manage.py backup`. Confirm the private dump exists locally in `deploy/boxlite/.local/crm.dump`, outside the sandbox. Validate it with `pg_restore --list` and a restore into an isolated database. Never commit this dump. Export another backup before any later environment reset.
 
 Source reimport restores source-managed organizations, contacts, memberships, billing fields, and overview snapshots. It cannot recover manually maintained notes, owner assignments, favorites, saved views, or Linear bindings from the deleted CRM database. Linear customer and issue records remain in Linear, but CRM bindings require reconstruction. No scheduled off-sandbox backup service is configured; a one-time local dump protects only its capture time.
+
+### Stable platform domain
+
+Request the short name `internal-crm` through Dashboard → Domains or `POST /v1/domains` with `{"name":"internal-crm"}`. Use the full hostname returned by the API; do not infer a production suffix. The current dev suffix is `dev.boxliteapp.com`.
+
+Bind the owned hostname to the CRM sandbox on port 8080 with `boxlite domain bind <hostname> --type box --box <box-id> --port 8080`, or `PUT /v1/domains/<hostname>/target` with `{"type":"box","box":"<box-id>","port":8080}`. Keep inbound networking and the 8080 tunnel enabled. Older CLI versions do not expose `domain`; the REST endpoint offers the same operation.
+
+`domain_count_limit_reached` requires a platform quota increase. Unbinding preserves ownership and does not free a domain slot. Do not move another application's domain to work around the limit. Once binding succeeds, update the private root `APP_URL` and `API_URL`, rebuild the frontend, restart the API, and update the existing Linear OAuth application's redirect URI to `https://<hostname>/api/auth/callback/linear`. Reuse the existing OAuth client ID and secret.
+
+A held platform domain can be rebound to a replacement sandbox without changing the application URL. This differs from the generated proxy hostname, which includes the sandbox ID.
