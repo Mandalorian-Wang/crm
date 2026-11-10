@@ -4,6 +4,8 @@ The BoxLite dev sandbox serves the app through Nginx on port 8080. The public tu
 
 ## Login
 
+The current deployment uses Linear-only SSO. Set `CRM_LINEAR_ONLY=true`, `CRM_PASSWORD_LOGIN=false`, and `ALLOWED_SIGN_IN=polygala.ai`. Follow **Linear-only login and CRM requests** below for OAuth configuration. The password setup below describes the retired temporary login mode.
+
 Set `ALLOWED_SIGN_IN=polygala.ai` and `CRM_PASSWORD_LOGIN=true`. The provisioning command reads `CRM_ADMIN_USERNAME` and `CRM_ADMIN_PASSWORD` from the private root `.env`. It creates a credential account with a scrypt password hash. Public email/password signup is disabled. The username form maps `admin` to `admin@polygala.ai`. The normal session, secure-cookie, origin and rate-limit protections remain enabled. Google, Microsoft and OIDC support remain available when configured.
 
 Run `bun run --filter=@crm/sync bootstrap` after migrations. Re-running it preserves the workspace and contacts. A changed admin password replaces the hash and revokes that account's sessions. Set `CRM_PASSWORD_LOGIN=false` when retiring temporary password access.
@@ -232,3 +234,16 @@ The overview uses two clickable metric cards for new organizations and Box activ
 ### Create and link a Linear customer
 
 An unbound organization's Linear tab offers **Create customer and link** with an editable name, initially the organization name. The server uses `customerUpsert` with `externalId=boxlite-crm:<company-id>` so retries reuse the same customer. No email domain is inferred. Successful creation persists the customer ID, name and URL in the existing binding fields. Existing bindings are preserved, including a binding made concurrently while creation is in progress. The API key needs customer write permission. No new environment variable or database migration is required.
+
+## Recovery after a dev environment reset
+
+A deleted sandbox cannot supply its PostgreSQL data or its internal backups. Preserve the private root `.env` and move stale deployment state aside before creating a replacement. Do not delete a live sandbox to recover a missing one.
+
+1. Create and provision a fresh sandbox using the steps above. Use its returned tunnel URL for `APP_URL` and `API_URL`. Proxy hostnames identify a sandbox; the normal tunnel API does not reassign an old hostname.
+2. Keep Linear-only SSO enabled and password login disabled. Update the Linear OAuth application's redirect whitelist to `<new-origin>/api/auth/callback/linear`. Rebuild Next.js after changing the public origin.
+3. Apply all database migrations and run bootstrap. Do not run demo seeds. Keep `GITHUB_SYNC_ENABLED=false` unless GitHub ingestion is explicitly re-enabled.
+4. Run `bun run --filter=@crm/sync sync --force`. Verify separate successful `overview`, `cloud`, and `billing` import runs. Compare imported organization identities and member checkpoints with source counts. A running or failed import is not a completed recovery.
+5. Start supervised services and verify the public health endpoint and sign-in page. Verify an OAuth round trip after the administrator updates the whitelist.
+6. Run `python deploy/boxlite/manage.py backup`. Confirm the private dump exists locally in `deploy/boxlite/.local/crm.dump`, outside the sandbox. Validate it with `pg_restore --list` and a restore into an isolated database. Never commit this dump. Export another backup before any later environment reset.
+
+Source reimport restores source-managed organizations, contacts, memberships, billing fields, and overview snapshots. It cannot recover manually maintained notes, owner assignments, favorites, saved views, or Linear bindings from the deleted CRM database. Linear customer and issue records remain in Linear, but CRM bindings require reconstruction. No scheduled off-sandbox backup service is configured; a one-time local dump protects only its capture time.
