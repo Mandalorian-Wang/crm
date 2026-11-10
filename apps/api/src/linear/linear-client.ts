@@ -45,6 +45,7 @@ export function customerReference(
 export async function linearRequest<T>(
 	query: string,
 	variables: {
+		customerInput?: { name: string; externalId: string };
 		id?: string;
 		customerId?: string;
 		issueId?: string;

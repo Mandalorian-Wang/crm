@@ -300,6 +300,27 @@ export class LinearService {
 		return data.customers;
 	}
 
+	async createCustomer(companyId: string, name: string) {
+		const current = await this.binding(companyId);
+		if (current.customer) return current;
+		const result = await linearRequest(
+			`mutation($customerInput:CustomerUpsertInput!){customerUpsert(input:$customerInput){success customer{id name url}}}`,
+			{ customerInput: { name, externalId: `boxlite-crm:${companyId}` } },
+			z.object({
+				customerUpsert: z.object({
+					success: z.boolean(),
+					customer: linearCustomer.nullable(),
+				}),
+			}),
+			true,
+		);
+		if (!result.customerUpsert.success || !result.customerUpsert.customer)
+			throw new BadGatewayException(
+				"Linear did not confirm customer creation. Retry to finish linking.",
+			);
+		return this.saveBinding(companyId, result.customerUpsert.customer, true);
+	}
+
 	async bind(companyId: string, reference: string | null) {
 		await this.company(companyId);
 		const customer = reference
@@ -316,7 +337,26 @@ export class LinearService {
 					)
 				).customer
 			: null;
+		return this.saveBinding(companyId, customer);
+	}
+	private async saveBinding(
+		companyId: string,
+		customer: z.infer<typeof linearCustomer> | null,
+		onlyIfUnbound = false,
+	) {
 		await this.db.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT "id" FROM "company" WHERE "id"=${companyId} FOR UPDATE`;
+			if (
+				onlyIfUnbound &&
+				(await tx.fieldValue.findFirst({
+					where: {
+						companyId,
+						field: { key: LINEAR.fields.id },
+						text: { not: null },
+					},
+				}))
+			)
+				return;
 			for (const [key, label, value] of [
 				[LINEAR.fields.id, "Linear customer ID", customer?.id],
 				[LINEAR.fields.name, "Linear customer", customer?.name],

@@ -228,3 +228,7 @@ Apply `20261109230000_daily_note_mentions` after the experience migration. Daily
 The organization toolbar's **Assignee** selector supports multiple CRM team members, Me, Unassigned and All. It uses the existing owner URL filter and combines with other filters. Changing an organization owner, including bulk assignment and clearing it, updates all active linked inbound users in the same transaction. A user linked to multiple organizations inherits the most recent explicit owner assignment. Cloud imports preserve existing owner values.
 
 The overview uses two clickable metric cards for new organizations and Box activation, with window/sync details in a tooltip. The cohort dialog contains activation status filters. Unknown activation stays visible as an unconfirmed count and a lower-bound percentage, without separate action buttons beneath the cards.
+
+### Create and link a Linear customer
+
+An unbound organization's Linear tab offers **Create customer and link** with an editable name, initially the organization name. The server uses `customerUpsert` with `externalId=boxlite-crm:<company-id>` so retries reuse the same customer. No email domain is inferred. Successful creation persists the customer ID, name and URL in the existing binding fields. Existing bindings are preserved, including a binding made concurrently while creation is in progress. The API key needs customer write permission. No new environment variable or database migration is required.

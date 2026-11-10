@@ -84,3 +84,7 @@ export const linearProjectsPage = z.object({
 		pageInfo: linearPageInfo,
 	}),
 });
+
+export const linearCreateCustomerInput = linearCompanyInput.extend({
+	name: z.string().trim().min(1).max(200),
+});

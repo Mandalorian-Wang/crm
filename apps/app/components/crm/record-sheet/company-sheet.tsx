@@ -184,7 +184,13 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 				{
 					value: "linear",
 					label: "Linear issue",
-					content: <CompanyLinear key={company.id} companyId={company.id} />,
+					content: (
+						<CompanyLinear
+							key={company.id}
+							companyId={company.id}
+							companyName={company.name}
+						/>
+					),
 				},
 				{
 					value: "deals",

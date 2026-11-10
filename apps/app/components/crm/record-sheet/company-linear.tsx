@@ -38,9 +38,25 @@ import { SubmitRequest } from "@/components/submit-request";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
-export function CompanyLinear({ companyId }: { companyId: string }) {
+export function CompanyLinear({
+	companyId,
+	companyName,
+}: {
+	companyId: string;
+	companyName: string;
+}) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+	const createNameId = useId();
+	const [newName, setNewName] = useState(companyName);
+	const createCustomer = useMutation(
+		trpc.linear.createCustomer.mutationOptions({
+			onSuccess: async () => {
+				await cache.linear(companyId);
+				toast.success("Customer created and linked.");
+			},
+		}),
+	);
 	const searchId = useId();
 	const referenceId = useId();
 	const [search, setSearch] = useState("");
@@ -116,8 +132,8 @@ export function CompanyLinear({ companyId }: { companyId: string }) {
 						</div>
 					) : (
 						<DetailSheetProse>
-							No Linear customer linked. Select one below or paste its customer
-							URL or ID.
+							No Linear customer linked. Find an existing customer or create one
+							below.
 						</DetailSheetProse>
 					)}
 					{binding.data && !binding.data.configured ? (
@@ -126,6 +142,47 @@ export function CompanyLinear({ companyId }: { companyId: string }) {
 							server configuration.
 						</DetailSheetProse>
 					) : null}
+					{binding.data?.configured && !customer ? (
+						<FieldGroup>
+							<Field>
+								<FieldLabel htmlFor={createNameId}>
+									Create a new Linear customer
+								</FieldLabel>
+								<form
+									className="flex flex-wrap gap-2"
+									onSubmit={(event) => {
+										event.preventDefault();
+										createCustomer.mutate({ companyId, name: newName.trim() });
+									}}
+								>
+									<Input
+										id={createNameId}
+										aria-label="New Linear customer name"
+										value={newName}
+										onChange={(event) => setNewName(event.target.value)}
+										maxLength={200}
+										disabled={createCustomer.isPending}
+									/>
+									<Button
+										type="submit"
+										disabled={
+											!newName.trim() ||
+											createCustomer.isPending ||
+											bind.isPending
+										}
+									>
+										{createCustomer.isPending
+											? "Creating…"
+											: "Create customer and link"}
+									</Button>
+								</form>
+								{createCustomer.error ? (
+									<p role="alert">{createCustomer.error.message}</p>
+								) : null}
+							</Field>
+						</FieldGroup>
+					) : null}
+
 					{binding.data?.configured ? (
 						<details open={!customer}>
 							<summary>Manage connection</summary>
@@ -133,7 +190,7 @@ export function CompanyLinear({ companyId }: { companyId: string }) {
 								<Button
 									variant="outline"
 									size="sm"
-									disabled={bind.isPending}
+									disabled={bind.isPending || createCustomer.isPending}
 									onClick={() => bind.mutate({ companyId, reference: null })}
 								>
 									Unlink customer
@@ -194,7 +251,9 @@ export function CompanyLinear({ companyId }: { companyId: string }) {
 											</SelectContent>
 										</Select>
 										<Button
-											disabled={!selected || bind.isPending}
+											disabled={
+												!selected || bind.isPending || createCustomer.isPending
+											}
 											onClick={() =>
 												bind.mutate({ companyId, reference: selected })
 											}
@@ -251,7 +310,11 @@ export function CompanyLinear({ companyId }: { companyId: string }) {
 										<Button
 											type="submit"
 											variant="outline"
-											disabled={!reference.trim() || bind.isPending}
+											disabled={
+												!reference.trim() ||
+												bind.isPending ||
+												createCustomer.isPending
+											}
 										>
 											Link customer
 										</Button>

@@ -14,6 +14,7 @@ import {
 	linearBindingInput,
 	linearBindingOutput,
 	linearCompanyInput,
+	linearCreateCustomerInput,
 	linearCustomerIssueInput,
 	linearCustomersInput,
 	linearCustomersOutput,
@@ -29,6 +30,10 @@ import { LinearService } from "./linear.service";
 @UseMiddlewares(AuthMiddleware)
 export class LinearRouter {
 	constructor(@Inject(LinearService) private readonly linear: LinearService) {}
+	@Mutation({ input: linearCreateCustomerInput, output: linearBindingOutput })
+	createCustomer(@Input() input: z.infer<typeof linearCreateCustomerInput>) {
+		return this.linear.createCustomer(input.companyId, input.name);
+	}
 	@Query({ output: linearProjectsOutput })
 	projects() {
 		return this.linear.projects();
