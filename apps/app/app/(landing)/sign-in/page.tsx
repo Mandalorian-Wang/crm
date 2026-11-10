@@ -89,7 +89,7 @@ async function SignIn({
 
 	const passwordLogin =
 		process.env.CRM_PASSWORD_LOGIN === "true" &&
-		process.env.CRM_LINEAR_ONLY !== "true";
+		Boolean(process.env.CRM_ADMIN_USERNAME?.trim());
 
 	if (!passwordLogin && !showSso && social.length === 0) {
 		return (
@@ -116,11 +116,11 @@ async function SignIn({
 				description="Sign in with your @polygala.ai Linear account."
 			/>
 
-			{passwordLogin ? <PasswordSignIn emailDomain="polygala.ai" /> : null}
 			{showSso ? <SsoSignIn providers={providers} /> : null}
 			{social.map((provider) => (
 				<SocialSignIn key={provider} provider={provider} />
 			))}
+			{passwordLogin ? <PasswordSignIn emailDomain="polygala.ai" /> : null}
 		</>
 	);
 }

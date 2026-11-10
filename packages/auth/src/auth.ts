@@ -82,9 +82,7 @@ export const auth = betterAuth({
 	}),
 
 	emailAndPassword: {
-		enabled:
-			process.env.CRM_PASSWORD_LOGIN === "true" &&
-			process.env.CRM_LINEAR_ONLY !== "true",
+		enabled: process.env.CRM_PASSWORD_LOGIN === "true",
 		disableSignUp: true,
 	},
 

@@ -6,7 +6,7 @@ The BoxLite dev sandbox serves the app through Nginx on port 8080. The public tu
 
 ## Login
 
-The current deployment uses Linear-only SSO. Set `CRM_LINEAR_ONLY=true`, `CRM_PASSWORD_LOGIN=false`, and `ALLOWED_SIGN_IN=polygala.ai`. Follow **Linear-only login and CRM requests** below for OAuth configuration. The password setup below describes the retired temporary login mode.
+The current deployment uses Linear SSO with an optional designated-admin password fallback. Set `CRM_LINEAR_ONLY=true`, `CRM_PASSWORD_LOGIN=true`, `CRM_ADMIN_USERNAME=admin`, and `ALLOWED_SIGN_IN=polygala.ai`. Follow **Linear-only login and CRM requests** below for OAuth configuration. The password setup below describes the retired temporary login mode.
 
 Set `ALLOWED_SIGN_IN=polygala.ai` and `CRM_PASSWORD_LOGIN=true`. The provisioning command reads `CRM_ADMIN_USERNAME` and `CRM_ADMIN_PASSWORD` from the private root `.env`. It creates a credential account with a scrypt password hash. Public email/password signup is disabled. The username form maps `admin` to `admin@polygala.ai`. The normal session, secure-cookie, origin and rate-limit protections remain enabled. Google, Microsoft and OIDC support remain available when configured.
 
@@ -259,3 +259,9 @@ Bind the owned hostname to the CRM sandbox on port 8080 with `boxlite domain bin
 `domain_count_limit_reached` requires a platform quota increase. Unbinding preserves ownership and does not free a domain slot. Do not move another application's domain to work around the limit. Once binding succeeds, update the private root `APP_URL` and `API_URL`, rebuild the frontend, restart the API, and update the existing Linear OAuth application's redirect URI to `https://<hostname>/api/auth/callback/linear`. Reuse the existing OAuth client ID and secret.
 
 A held platform domain can be rebound to a replacement sandbox without changing the application URL. This differs from the generated proxy hostname, which includes the sandbox ID.
+
+### Designated administrator password fallback
+
+The sign-in page keeps Linear as the primary action and exposes a collapsed **Admin sign-in** form when `CRM_PASSWORD_LOGIN=true` and `CRM_ADMIN_USERNAME` is set. The username form maps to `@polygala.ai`. Password authentication requires an exact match to `CRM_ADMIN_USERNAME@polygala.ai` and an existing owner/admin membership in the CRM workspace. Other members and other administrators cannot use this endpoint, even with valid passwords. Public signup remains disabled.
+
+Keep `CRM_LINEAR_ONLY=true`: the designated password endpoint is the only login exception; Google, Microsoft, and generic SSO remain blocked. `CRM_PASSWORD_LOGIN=false` removes the form and blocks password login. Bootstrap remains responsible for provisioning the configured credential hash. Changing the allowlist username alone does not create an account. Existing Linear sessions and workspace restrictions remain in place.

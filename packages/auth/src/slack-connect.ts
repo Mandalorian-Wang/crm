@@ -22,15 +22,41 @@ const SLACK_CONNECT_START_PATHS = ["/link-social", "/sign-in/social"];
 const OAUTH_CALLBACK_PATH = "/callback/";
 
 const connectStartBody = z.object({ provider: z.string() });
+const passwordBody = z.object({
+	email: z.string().trim().toLowerCase().email(),
+});
 const callbackParams = z.object({ id: z.string() });
 
 export const slackConnectGuard = createAuthMiddleware(async (ctx) => {
+	if (ctx.path === "/sign-in/email") {
+		const input = passwordBody.safeParse(ctx.body);
+		const username = process.env.CRM_ADMIN_USERNAME?.trim().toLowerCase();
+		const email = username ? `${username}@polygala.ai` : null;
+		const enabled = process.env.CRM_PASSWORD_LOGIN === "true";
+		const member =
+			enabled && email && input.success && input.data.email === email
+				? await db.member.findFirst({
+						where: {
+							organizationId: WORKSPACE_ID,
+							user: { email },
+							role: { in: ["owner", "admin"] },
+						},
+						select: { role: true },
+					})
+				: null;
+		if (!member) {
+			throw new APIError("UNAUTHORIZED", {
+				message: "Username or password is incorrect.",
+			});
+		}
+	}
 	if (process.env.CRM_LINEAR_ONLY === "true") {
 		const body = connectStartBody.safeParse(ctx.body);
 		const permitted =
-			ctx.path === "/sign-in/social" &&
-			body.success &&
-			body.data.provider === "linear";
+			ctx.path === "/sign-in/email" ||
+			(ctx.path === "/sign-in/social" &&
+				body.success &&
+				body.data.provider === "linear");
 		if (
 			(ctx.path.startsWith("/sign-in/") || ctx.path.startsWith("/sso/")) &&
 			!permitted

@@ -12,6 +12,7 @@ import { Input } from "@crm/ui/components/input";
 import { type FormEvent, useState } from "react";
 
 export function PasswordSignIn({ emailDomain }: { emailDomain: string }) {
+	const [expanded, setExpanded] = useState(false);
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -38,38 +39,52 @@ export function PasswordSignIn({ emailDomain }: { emailDomain: string }) {
 		}
 	}
 	return (
-		<form onSubmit={submit}>
-			<FieldGroup>
-				<Field data-disabled={busy} data-invalid={Boolean(error)}>
-					<FieldLabel htmlFor="username">Username</FieldLabel>
-					<Input
-						id="username"
-						autoComplete="username"
-						value={username}
-						onChange={(e) => setUsername(e.target.value)}
-						required
-						disabled={busy}
-						aria-invalid={Boolean(error)}
-					/>
-				</Field>
-				<Field data-disabled={busy} data-invalid={Boolean(error)}>
-					<FieldLabel htmlFor="password">Password</FieldLabel>
-					<Input
-						id="password"
-						type="password"
-						autoComplete="current-password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						required
-						disabled={busy}
-						aria-invalid={Boolean(error)}
-					/>
-				</Field>
-				{error ? <FieldError>{error}</FieldError> : null}
-				<Button type="submit" disabled={busy}>
-					{busy ? "Signing in…" : "Sign in"}
-				</Button>
-			</FieldGroup>
-		</form>
+		<>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				aria-expanded={expanded}
+				aria-controls="admin-sign-in"
+				onClick={() => setExpanded(!expanded)}
+			>
+				Admin sign-in
+			</Button>
+			{expanded ? (
+				<form id="admin-sign-in" onSubmit={submit}>
+					<FieldGroup>
+						<Field data-disabled={busy} data-invalid={Boolean(error)}>
+							<FieldLabel htmlFor="username">Username</FieldLabel>
+							<Input
+								id="username"
+								autoComplete="username"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
+								required
+								disabled={busy}
+								aria-invalid={Boolean(error)}
+							/>
+						</Field>
+						<Field data-disabled={busy} data-invalid={Boolean(error)}>
+							<FieldLabel htmlFor="password">Password</FieldLabel>
+							<Input
+								id="password"
+								type="password"
+								autoComplete="current-password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+								disabled={busy}
+								aria-invalid={Boolean(error)}
+							/>
+						</Field>
+						{error ? <FieldError>{error}</FieldError> : null}
+						<Button type="submit" disabled={busy}>
+							{busy ? "Signing in…" : "Sign in"}
+						</Button>
+					</FieldGroup>
+				</form>
+			) : null}
+		</>
 	);
 }
