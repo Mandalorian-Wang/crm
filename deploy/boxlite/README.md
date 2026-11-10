@@ -16,7 +16,7 @@ Run `bun run --filter=@crm/sync bootstrap` after migrations. Re-running it prese
 
 ## Import schedule and recovery
 
-The supervised sync worker runs both sources at 00:00 UTC, equivalent to 08:00 Asia/Shanghai. It checks each minute. Starting after the scheduled time recovers the missed run. A successful source runs once per UTC date. Failed sources retry after fifteen minutes. Each source holds a PostgreSQL advisory lock; a second worker cannot run the same source concurrently. `importRun` stores outcome, processed count, and timestamps.
+The supervised sync worker runs overview, Cloud, and billing every hour. It checks each minute and runs each source once per UTC hour. Starting mid-hour recovers the current hour. The legacy `importRun.scheduledDay` text column now stores the UTC hour, such as `2026-11-10T08:00:00Z`; old daily records remain unchanged. Sources run sequentially. A run that crosses an hour boundary finishes before the next run starts; missed historical hours are not queued. Failed sources retry after fifteen minutes. Each source holds a PostgreSQL advisory lock; a second worker cannot run the same source concurrently. `importRun` stores outcome, processed count, and timestamps.
 
 The first run imports the current accessible baseline. Later runs enumerate current records and insert missing identities. Full enumeration discovers new members in older Cloud organizations. Imports do not infer churn from missing source records. A failed or partial source never receives a successful checkpoint. Identity records make retries idempotent. Archives and purges of mapped records do not trigger automatic recreation.
 
@@ -138,7 +138,7 @@ Organization details use the full panel width with responsive property columns. 
 
 The `linear_url` URL field is manually editable and preserved by sync. A valid HTTPS Linear link enables **Open Linear** in the header. The current Backoffice response has no Linear mapping, so no link is fabricated. Discord and Notion fields are also manual.
 
-Cloud sync imports the organization directory before fetching members. A failing member endpoint does not block later organizations. Per-organization daily checkpoints resume incomplete work without repeating successful organizations. The member status field reports incomplete runs; retries follow the same fifteen-minute policy. Old daily checkpoints are removed after seven days. Organization counts and dates refresh on each run.
+Cloud sync imports the organization directory before fetching members. A failing member endpoint does not block later organizations. Per-organization hourly checkpoints resume incomplete work without repeating successful organizations. The member status field reports incomplete runs; retries follow the same fifteen-minute policy. Old hourly and legacy daily checkpoints are removed after seven days. Organization counts and dates refresh on each run.
 
 The billing job reads `/v1/billing/usage` using a fixed UTC month-to-date snapshot and follows its cursor. `Settled usage this month` keeps currencies separate and converts minor units with each currency's exponent, without floating point rounding. `Usage window (UTC)` and `Usage synced at` show the coverage and freshness. Missing aggregate rows display **No settled usage reported**, never a fabricated zero. Failed fetches preserve the last successful values and timestamps. Settlement can be delayed; the API declares coverage unknown. These totals are not complete real-time usage. This is settled consumption, not current wallet balance, cash payment, subscription revenue or a Deal value. Wallet balances and actual subscription orders require additional Backoffice endpoints.
 
@@ -148,7 +148,7 @@ Better Auth 1.7 uses `/api/auth/callback/slack` for the Slack OAuth redirect. Up
 
 ## Pause GitHub imports
 
-`GITHUB_SYNC_ENABLED=false` disables GitHub imports, including `sync --force`. The dev deployment currently uses this setting at the user's request. Cloud and billing jobs continue on their existing daily schedule. Existing contacts and the GitHub tab remain available. To resume, set `GITHUB_SYNC_ENABLED=true` after confirming token access, upload the private environment and restart the sync worker.
+`GITHUB_SYNC_ENABLED=false` disables GitHub imports, including `sync --force`. The dev deployment currently uses this setting at the user's request. Cloud and billing jobs continue on their hourly schedule. Existing contacts and the GitHub tab remain available. To resume, set `GITHUB_SYNC_ENABLED=true` after confirming token access, upload the private environment and restart the sync worker.
 
 ## Personal columns and organization favorites
 
@@ -164,7 +164,7 @@ Organization inbound-user counts open the linked-user tab. Linked names are expl
 
 The home page replaces sales pipeline charts, deals-in-progress and overdue-task widgets with two Cloud metrics and an Inbound users table. A Cloud user means an organization. Yesterday is the half-open calendar day `[00:00, next 00:00)` in Asia/Shanghai. The denominator is organizations created in that window; the numerator is those organizations with evidence of a Box created in the same window.
 
-The `overview` import runs before other imports at 08:00 Asia/Shanghai and stores a daily `cloudDailyOverview` snapshot. It fetches organization details and all member pages for yesterday's organizations first. The Inbound users list joins those member IDs to imported contacts, deduplicates contacts across organizations and lists their matching organizations. CRM import timestamps never determine this cohort. Archived contacts are excluded. Pagination is server-side.
+The `overview` import runs before other imports each hour and stores a daily `cloudDailyOverview` snapshot. It fetches organization details and all member pages for yesterday's organizations first. The Inbound users list joins those member IDs to imported contacts, deduplicates contacts across organizations and lists their matching organizations. CRM import timestamps never determine this cohort. Archived contacts are excluded. Pagination is server-side.
 
 Backoffice documents an optional latest retained Box creation time, not a full creation-event history. Requests explicitly include `include=activation`; an omitted or null activation value leaves activity unknown and never blocks member imports. A latest creation within yesterday proves activation. A later creation leaves yesterday's activity unknown unless a prior daily snapshot established it. For newly created organizations only, positive compute/storage allocation in yesterday's `/v1/usage` window supplies additional evidence of same-day Box use. Missing usage is never treated as inactivity. Usage pagination must finish before that evidence is applied. Unknown organizations are reported explicitly and the UI shows a lower-bound percentage instead of claiming an exact rate. A zero denominator displays a dash, and unavailable snapshots display pending data rather than fabricated zeros. Partial member fetches are retried while preserving earlier membership evidence.
 

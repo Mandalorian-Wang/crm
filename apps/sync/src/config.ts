@@ -14,6 +14,6 @@ export const SYNC = {
 	timezone: "Asia/Shanghai",
 } as const;
 
-export function scheduledDay(now: Date): string {
-	return now.toISOString().slice(0, 10);
+export function scheduledHour(now: Date): string {
+	return `${now.toISOString().slice(0, 13)}:00:00Z`;
 }

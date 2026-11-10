@@ -1,6 +1,6 @@
 import { db, Prisma } from "@crm/db";
 import { syncBilling } from "./billing";
-import { SYNC, scheduledDay } from "./config";
+import { SYNC, scheduledHour } from "./config";
 import { ensureFields, setField } from "./fields";
 import { importCompany, importMember, importStar } from "./import";
 import { syncOverview } from "./overview";
@@ -17,11 +17,11 @@ export async function runSource(
 				Prisma.sql`SELECT pg_try_advisory_xact_lock(hashtext(${`boxlite-crm:${source}`})) AS acquired`,
 			);
 			if (!acquired[0]?.acquired) return;
-			const day = scheduledDay(new Date());
+			const hour = scheduledHour(new Date());
 			if (
 				!force &&
 				(await db.importRun.findFirst({
-					where: { source, scheduledDay: day, status: "SUCCEEDED" },
+					where: { source, scheduledDay: hour, status: "SUCCEEDED" },
 				}))
 			)
 				return;
@@ -42,7 +42,7 @@ export async function runSource(
 				},
 			});
 			const run = await db.importRun.create({
-				data: { source, scheduledDay: day, status: "RUNNING" },
+				data: { source, scheduledDay: hour, status: "RUNNING" },
 			});
 			let processed = 0;
 			try {
@@ -62,8 +62,8 @@ export async function runSource(
 					for (const { customer, companyId } of pending.reverse()) {
 						const checkpoint = {
 							source: "cloud",
-							externalId: `${day}:${customer.organizationId}`,
-							kind: "members-day",
+							externalId: `${hour}:${customer.organizationId}`,
+							kind: "members-hour",
 						};
 						if (
 							!force &&
@@ -83,7 +83,7 @@ export async function runSource(
 									"COMPANY",
 									companyId,
 									"cloud_members_sync_status",
-									{ text: `Synced ${day}` },
+									{ text: `Synced ${hour}` },
 								);
 								await tx.importedRecord.upsert({
 									where: { source_externalId_kind: checkpoint },
@@ -103,7 +103,7 @@ export async function runSource(
 								"COMPANY",
 								companyId,
 								"cloud_members_sync_status",
-								{ text: `Incomplete ${day}; retry scheduled` },
+								{ text: `Incomplete ${hour}; retry scheduled` },
 							);
 						}
 						await db.importRun.update({
@@ -114,7 +114,7 @@ export async function runSource(
 					await db.importedRecord.deleteMany({
 						where: {
 							source: "cloud",
-							kind: "members-day",
+							kind: { in: ["members-day", "members-hour"] },
 							createdAt: { lt: new Date(Date.now() - 7 * 86400000) },
 						},
 					});
@@ -140,7 +140,7 @@ export async function runSource(
 					data: { status: "SUCCEEDED", processed, finishedAt: new Date() },
 				});
 				console.info(
-					JSON.stringify({ source, status: "SUCCEEDED", processed, day }),
+					JSON.stringify({ source, status: "SUCCEEDED", processed, hour }),
 				);
 			} catch (error) {
 				const message =

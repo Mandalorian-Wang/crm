@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
-import { scheduledDay } from "../src/config";
+import { scheduledHour } from "../src/config";
 import {
 	customerSnapshot,
 	customers,
@@ -14,12 +14,17 @@ afterEach(() => {
 });
 
 describe("import boundaries", () => {
-	test("08:00 Shanghai is the daily UTC boundary", () => {
-		expect(scheduledDay(new Date("2026-11-09T07:59:59+08:00"))).toBe(
-			"2026-11-08",
+	test("each hour has a separate checkpoint across Shanghai midnight", () => {
+		expect(scheduledHour(new Date("2026-11-09T23:59:59+08:00"))).toBe(
+			"2026-11-09T15:00:00Z",
 		);
-		expect(scheduledDay(new Date("2026-11-09T08:00:00+08:00"))).toBe(
-			"2026-11-09",
+		expect(scheduledHour(new Date("2026-11-10T00:00:00+08:00"))).toBe(
+			"2026-11-09T16:00:00Z",
+		);
+	});
+	test("retries within an hour share the checkpoint", () => {
+		expect(scheduledHour(new Date("2026-11-10T00:00:00Z"))).toBe(
+			scheduledHour(new Date("2026-11-10T00:59:59.999Z")),
 		);
 	});
 	test("missing or invalid emails remain unknown", () => {
