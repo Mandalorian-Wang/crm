@@ -217,3 +217,7 @@ is sent. No client is constructed, so there is no queue waiting to flush later.
 - **Redis** — optional; without `REDIS_URL` the cache is per-instance in-memory, which
   is wrong for multi-instance.
 - **Sign-in method** — Google and Microsoft are in code; an IdP is a row (SSO, in `api.md`).
+
+## Neon PostgreSQL
+
+Neon writes pooled `DATABASE_URL` and direct `DATABASE_URL_UNPOOLED` into the private root `.env`. Application services use the existing Prisma PostgreSQL adapter with `DATABASE_URL`. Prisma CLI migrations prefer `DATABASE_URL_UNPOOLED`, falling back to `DATABASE_URL` for local installations. Both values remain secret; neither belongs in client bundles or command arguments. See `deploy/boxlite/NEON.md` for cutover and backup verification.

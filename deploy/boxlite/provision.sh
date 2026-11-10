@@ -16,3 +16,5 @@ curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${bun_version}
 unzip -q bun.zip
 install -m 755 bun-linux-x64/bun /usr/local/bin/bun
 pg_ctlcluster 15 main start || pg_ctlcluster 15 main status
+
+sh /app/crm/deploy/boxlite/install_pg_client.sh

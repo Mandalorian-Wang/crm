@@ -1,5 +1,7 @@
 # BoxLite CRM deployment
 
+The current CRM stores all PostgreSQL data in Neon. See [Neon deployment and recovery](NEON.md). The local PostgreSQL provisioning below remains a fallback for standalone installations.
+
 The BoxLite dev sandbox serves the app through Nginx on port 8080. The public tunnel uses HTTPS. PostgreSQL, the API, and Next.js remain behind the gateway. Only the gateway port is published.
 
 ## Login

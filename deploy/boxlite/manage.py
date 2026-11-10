@@ -84,7 +84,7 @@ async def main():
         await execute(box, "supervisorctl -c /app/crm/deploy/boxlite/supervisord.conf status; curl -fsS http://127.0.0.1:8080/healthz")
     elif args.action == "backup":
         destination = STATE.parent / "crm.dump"
-        await execute(box, "sudo -u postgres pg_dump -Fc crm > /root/crm.dump && chmod 600 /root/crm.dump")
+        await execute(box, "python3 /app/crm/deploy/boxlite/database.py backup")
         await box.copy_out("/root/crm.dump", str(destination))
         destination.chmod(0o600)
         print(f"Private backup saved to {destination}")
