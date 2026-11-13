@@ -29,6 +29,7 @@ import {
 	InlineSelectField,
 	savingValue,
 } from "@/components/crm/inline-field";
+import { OrganizationTypeTag } from "@/components/crm/organization-type-tag";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { CompanySocials } from "@/components/crm/social-links";
 import { DealStageMenu } from "@/components/crm/stage-change";
@@ -212,7 +213,21 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 		<RecordSheetFrame
 			loading={query.isPending}
 			error={query.error?.message ?? null}
-			title={company?.name ?? "Company"}
+			title={
+				<span className="inline-flex flex-wrap items-center gap-3">
+					<span>{company?.name ?? "Company"}</span>
+					{company ? (
+						<OrganizationTypeTag
+							companyId={company.id}
+							value={
+								company.fields.find(
+									(field) => field.key === "organization_type",
+								)?.value
+							}
+						/>
+					) : null}
+				</span>
+			}
 			description={
 				company ? (
 					<div className="flex flex-col gap-1">

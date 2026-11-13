@@ -265,3 +265,13 @@ A held platform domain can be rebound to a replacement sandbox without changing 
 The sign-in page keeps Linear as the primary action and exposes a collapsed **Admin sign-in** form when `CRM_PASSWORD_LOGIN=true` and `CRM_ADMIN_USERNAME` is set. The username form maps to `@polygala.ai`. Password authentication requires an exact match to `CRM_ADMIN_USERNAME@polygala.ai` and an existing owner/admin membership in the CRM workspace. Other members and other administrators cannot use this endpoint, even with valid passwords. Public signup remains disabled.
 
 Keep `CRM_LINEAR_ONLY=true`: the designated password endpoint is the only login exception; Google, Microsoft, and generic SSO remain blocked. `CRM_PASSWORD_LOGIN=false` removes the form and blocks password login. Bootstrap remains responsible for provisioning the configured credential hash. Changing the allowlist username alone does not create an account. Existing Linear sessions and workspace restrictions remain in place.
+
+## Organization type dictionary
+
+Settings → Dictionaries manages the Organization type single-select field. Owners and admins can add, rename, recolor, deactivate, and restore options. Every authenticated team member can assign or clear one type beside an organization name, in both the list and detail header. Options start empty; the team defines its own categories.
+
+The `organization_type` field stores an option ID. The shared `fieldOption.color` column stores one of eight accessible tag colors. Deactivation retains historical assignments; only active options can be newly selected. Rename and color edits update existing tags. Names must be nonempty, at most 40 characters, and unique within the dictionary without regard to case.
+
+The field participates in organization filters. Sync does not write this manually managed field. Generic field editing cannot change or remove this dictionary, and option IDs cannot be moved between fields. Deploy migration `20261113140000_organization_type` before restarting services with the new Prisma client.
+
+Validation covers isolated Neon branch migration, administrator/member permissions, replacing and clearing a selection, archived-option rejection, retained historical values, duplicate names, and generic-field mutation bypasses.

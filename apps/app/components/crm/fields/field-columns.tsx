@@ -52,7 +52,7 @@ export function useFieldColumns<Row extends WithFields>(
 		if (!fields) return [];
 
 		return fields
-			.filter((field) => field.showOnTable)
+			.filter((field) => field.showOnTable && field.key !== "organization_type")
 			.map((field) => ({
 				id: `field:${field.key}`,
 				header: field.label,

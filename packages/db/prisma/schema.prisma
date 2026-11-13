@@ -1184,6 +1184,7 @@ model FieldDefinition {
 }
 
 model FieldOption {
+  color String @default("gray")
   id       String          @id @default(cuid())
   fieldId  String
   field    FieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)

@@ -19,6 +19,7 @@ import {
 	usesOptions,
 	writeValues,
 } from "@crm/db/fields";
+import { ORGANIZATION_TYPE_KEY } from "@crm/validation/organization-type";
 import {
 	BadRequestException,
 	ConflictException,
@@ -82,7 +83,7 @@ export class FieldsService {
 			throw new BadRequestException("That label does not make a usable key.");
 		}
 
-		if (isSourceManagedField(key))
+		if (key === ORGANIZATION_TYPE_KEY || isSourceManagedField(key))
 			throw new BadRequestException(
 				"This field key is reserved for a data source.",
 			);
@@ -155,6 +156,10 @@ export class FieldsService {
 		});
 
 		if (!existing) throw new NotFoundException("That field does not exist.");
+		if (existing.key === ORGANIZATION_TYPE_KEY)
+			throw new BadRequestException(
+				"Manage organization types in Settings → Dictionaries.",
+			);
 
 		if (
 			isSourceManagedField(existing.key) &&
@@ -180,6 +185,16 @@ export class FieldsService {
 					"This field already holds values, so its type cannot change. Archive it and make a new one.",
 				);
 			}
+		}
+
+		if (
+			data.options?.some(
+				(option) =>
+					option.id &&
+					!existing.options.some((current) => current.id === option.id),
+			)
+		) {
+			throw new BadRequestException("An option must belong to this field.");
 		}
 
 		const optionCount = data.options
@@ -285,7 +300,11 @@ export class FieldsService {
 		const definition = await this.db.fieldDefinition.findUnique({
 			where: { id },
 		});
-		if (definition && isSourceManagedField(definition.key))
+		if (
+			definition &&
+			(definition.key === ORGANIZATION_TYPE_KEY ||
+				isSourceManagedField(definition.key))
+		)
 			throw new BadRequestException(
 				"Source-managed fields cannot be archived. Change their visibility instead.",
 			);
@@ -320,7 +339,11 @@ export class FieldsService {
 		const definition = await this.db.fieldDefinition.findUnique({
 			where: { id },
 		});
-		if (definition && isSourceManagedField(definition.key))
+		if (
+			definition &&
+			(definition.key === ORGANIZATION_TYPE_KEY ||
+				isSourceManagedField(definition.key))
+		)
 			throw new BadRequestException("Source-managed fields cannot be deleted.");
 		try {
 			await this.db.fieldDefinition.delete({ where: { id } });
@@ -499,10 +522,10 @@ export class FieldsService {
 			if (!definition) continue;
 
 			const current = byRecord.get(recordId) ?? {};
-			current[definition.key] = tableValue(
-				definition,
-				readValue(definition, row),
-			);
+			current[definition.key] =
+				definition.key === ORGANIZATION_TYPE_KEY
+					? readValue(definition, row)
+					: tableValue(definition, readValue(definition, row));
 			byRecord.set(recordId, current);
 		}
 

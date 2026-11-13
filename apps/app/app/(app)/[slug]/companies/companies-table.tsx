@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { EnrichmentIndicator } from "@/components/crm/enrichment-status";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
 import { useFieldFacets } from "@/components/crm/fields/field-facets";
+import { OrganizationTypeTag } from "@/components/crm/organization-type-tag";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { FOLLOW_UP_LABELS } from "@/components/crm/record-sheet/company-follow-up";
 import { usePrefetchRecord } from "@/components/crm/record-sheet/record-prefetch";
@@ -77,7 +78,15 @@ const COLUMNS: DataTableColumn<CompanyRow>[] = [
 					size="sm"
 				/>
 				<span className="flex min-w-0 flex-col">
-					<span className="truncate font-medium">{row.name}</span>
+					<span className="flex min-w-0 items-center gap-2">
+						<span className="truncate font-medium" title={row.name}>
+							{row.name}
+						</span>
+						<OrganizationTypeTag
+							companyId={row.id}
+							value={row.fields.organization_type}
+						/>
+					</span>
 					<span
 						className="truncate text-xs text-muted-foreground"
 						title={
