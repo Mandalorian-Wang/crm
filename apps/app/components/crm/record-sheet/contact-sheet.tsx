@@ -20,7 +20,6 @@ import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LinkUsersDialog } from "@/components/crm/link-users-dialog";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
 import { ContactEnrichmentAction } from "@/components/crm/enrichment-actions";
@@ -32,6 +31,7 @@ import {
 	InlineSelectField,
 	savingValue,
 } from "@/components/crm/inline-field";
+import { LinkUsersDialog } from "@/components/crm/link-users-dialog";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { ContactSocials } from "@/components/crm/social-links";
 import { Timeline } from "@/components/crm/timeline/timeline";

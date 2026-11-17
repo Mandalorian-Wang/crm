@@ -41,9 +41,11 @@ function anchorId(anchor: TimelineAnchor): string {
 export function TimelineEntry({
 	entry,
 	anchor,
+	hideContact = false,
 }: {
 	entry: TimelineEntryData;
 	anchor: TimelineAnchor;
+	hideContact?: boolean;
 }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
@@ -81,7 +83,9 @@ export function TimelineEntry({
 	const here = anchorId(anchor);
 	const deal = entry.deal && entry.deal.id !== here ? entry.deal : null;
 	const contact =
-		entry.contact && entry.contact.id !== here ? entry.contact : null;
+		!hideContact && entry.contact && entry.contact.id !== here
+			? entry.contact
+			: null;
 
 	const footnotes = Boolean(
 		deal || contact || (isTask && !done && entry.dueAt),

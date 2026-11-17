@@ -258,7 +258,7 @@ function LinkedUserNotes({ companyId }: { companyId: string }) {
 							"inbound user"
 						)}
 					</li>
-					<TimelineEntry entry={entry} anchor={{ companyId }} />
+					<TimelineEntry entry={entry} anchor={{ companyId }} hideContact />
 				</NoteTimelineDay>
 			))}
 			{history.hasNextPage ? (

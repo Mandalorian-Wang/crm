@@ -93,6 +93,11 @@ export function operationGuidance(operation: string, currentUserId: string) {
 			retries:
 				"Use a stable requestId for the same interaction. Use a new requestId for a different interaction. Read contactHistory first to avoid duplicate outreach. Follow nextCursor until null; q searches evidence text.",
 		};
+	if (operation === "activities.timeline")
+		return {
+			linkedNotes:
+				"For an organization with no daily notes, use companyId and linkedContactNotesOnly:true. This reads current linked users' notes, including history before linking or reassignment. Label each note with its contact name. Follow nextCursor until null. These remain user notes; do not copy them into organization daily notes automatically.",
+		};
 	if (operation === "activities.create")
 		return {
 			purpose:
@@ -145,6 +150,10 @@ export function operationGuidance(operation: string, currentUserId: string) {
 		};
 	if (operation.endsWith(".update"))
 		return {
+			registrationSource:
+				operation === "contacts.update"
+					? "data.fields.registration_source accepts custom text or null. Manual edits, including clearing, survive later imports. Cloud/GitHub origin tabs still reflect synced identity fields, not this editable label."
+					: undefined,
 			partialUpdate:
 				"Only send changed properties. Custom values are data.fields keyed by field key. SELECT values use existing option IDs. null clears a custom field.",
 			owner:
