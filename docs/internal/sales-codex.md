@@ -17,7 +17,8 @@
 - 搜索、新建、修改、归档、恢复 Cloud organizations 和 Inbound users。
 - 修改 owner、联系方式、自定义字段的值。
 - 列出、创建、修改、停用和恢复字段定义、Organization type 及颜色。
-- 读取、追加及修改当天 Daily note，历史笔记冻结。
+- 读取、追加及修改 organization 当天 Daily note，历史笔记冻结。
+- Inbound users 的 Notes 保留原有纪要，支持查看历史记录、继续记录会议和沟通。MCP 使用 activities.timeline / activities.create。
 - 查询 Linear 客户和 issue，维护现有客户绑定。
 
 “删除客户”使用可恢复的归档，不提供 MCP 永久删除工具。

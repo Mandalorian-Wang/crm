@@ -154,15 +154,22 @@ function TimelineDay({
 	);
 }
 
-export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
+export function Timeline({
+	anchor,
+	notesOnly = false,
+}: {
+	anchor: TimelineAnchor;
+	notesOnly?: boolean;
+}) {
 	const trpc = useTRPC();
 	const hydrated = useHydrated();
 
-	const [tab, setTab] = useQueryState(
+	const [selectedTab, setTab] = useQueryState(
 		SEARCH_PARAM.record.timeline,
 		timelineTabParser,
 	);
 
+	const tab = notesOnly ? "notes" : selectedTab;
 	const counts = useQuery(trpc.activities.timelineCounts.queryOptions(anchor));
 
 	const pinned = useQuery({
@@ -187,28 +194,30 @@ export function Timeline({ anchor }: { anchor: TimelineAnchor }) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
 			<div className="flex shrink-0 flex-col gap-2 border-b px-5 py-3">
-				<ActivityComposer anchor={anchor} />
+				<ActivityComposer anchor={anchor} notesOnly={notesOnly} />
 
-				<ToggleGroup
-					type="single"
-					value={tab}
-					onValueChange={(next) => {
-						if (next) void setTab(next as TimelineTab);
-					}}
-					size="sm"
-					spacing={0}
-				>
-					{TIMELINE_TABS.map((option) => (
-						<ToggleGroupItem key={option} value={option}>
-							{TAB_LABELS[option]}
-							{counts.data?.[option] ? (
-								<span className="tabular-nums opacity-60">
-									{counts.data[option]}
-								</span>
-							) : null}
-						</ToggleGroupItem>
-					))}
-				</ToggleGroup>
+				{!notesOnly ? (
+					<ToggleGroup
+						type="single"
+						value={tab}
+						onValueChange={(next) => {
+							if (next) void setTab(next as TimelineTab);
+						}}
+						size="sm"
+						spacing={0}
+					>
+						{TIMELINE_TABS.map((option) => (
+							<ToggleGroupItem key={option} value={option}>
+								{TAB_LABELS[option]}
+								{counts.data?.[option] ? (
+									<span className="tabular-nums opacity-60">
+										{counts.data[option]}
+									</span>
+								) : null}
+							</ToggleGroupItem>
+						))}
+					</ToggleGroup>
+				) : null}
 			</div>
 
 			{history.isPending ? (

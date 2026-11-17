@@ -33,6 +33,7 @@ import {
 } from "@/components/crm/inline-field";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { ContactSocials } from "@/components/crm/social-links";
+import { Timeline } from "@/components/crm/timeline/timeline";
 import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
@@ -98,6 +99,11 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 					value: "overview",
 					label: "Overview",
 					content: <ContactOverview contact={contact} />,
+				},
+				{
+					value: "activity",
+					label: "Notes",
+					content: <Timeline anchor={{ contactId: contact.id }} notesOnly />,
 				},
 			]
 		: [];

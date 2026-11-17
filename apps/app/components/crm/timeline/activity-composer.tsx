@@ -42,7 +42,13 @@ const PLACEHOLDER = {
 	TASK: "What needs doing?",
 } satisfies Record<ComposableType, string>;
 
-export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
+export function ActivityComposer({
+	anchor,
+	notesOnly = false,
+}: {
+	anchor: TimelineAnchor;
+	notesOnly?: boolean;
+}) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
@@ -90,7 +96,11 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 				<InputGroupTextarea
 					value={draft}
 					onChange={(event) => setDraft(event.target.value)}
-					placeholder={PLACEHOLDER[type]}
+					placeholder={
+						notesOnly && type === "NOTE"
+							? "Write a note or meeting summary…"
+							: PLACEHOLDER[type]
+					}
 					aria-label="What happened"
 					onKeyDown={(event) => {
 						if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -109,16 +119,18 @@ export function ActivityComposer({ anchor }: { anchor: TimelineAnchor }) {
 						size="sm"
 						spacing={0}
 					>
-						{TYPES.map((option) => (
-							<ToggleGroupItem
-								key={option}
-								value={option}
-								aria-label={activityLabel(option)}
-							>
-								<ActivityIcon type={option} />
-								{activityLabel(option)}
-							</ToggleGroupItem>
-						))}
+						{TYPES.filter((option) => !notesOnly || option !== "TASK").map(
+							(option) => (
+								<ToggleGroupItem
+									key={option}
+									value={option}
+									aria-label={activityLabel(option)}
+								>
+									<ActivityIcon type={option} />
+									{activityLabel(option)}
+								</ToggleGroupItem>
+							),
+						)}
 					</ToggleGroup>
 
 					{isTask ? (
