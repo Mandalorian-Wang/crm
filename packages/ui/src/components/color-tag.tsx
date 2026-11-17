@@ -13,6 +13,6 @@ const tones = {
  orange: "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-200",
 } as const;
 
-export function ColorTag({color = "gray", ...props}: Omit<ComponentProps<typeof Badge>, "color" | "variant" | "className"> & {color?: keyof typeof tones}) {
- return <Badge variant="outline" className={cn("h-6 max-w-48 cursor-default [&_span]:truncate [&:is(button)]:cursor-pointer [&:is(button)]:hover:brightness-95", tones[color])} {...props} />;
+export function ColorTag({color = "gray", wrap = false, ...props}: Omit<ComponentProps<typeof Badge>, "color" | "variant" | "className"> & {color?: keyof typeof tones; wrap?: boolean}) {
+ return <Badge variant="outline" className={cn("cursor-default [&:is(button)]:cursor-pointer [&:is(button)]:hover:brightness-95", wrap ? "h-auto min-h-6 max-w-full whitespace-normal [&_span]:min-w-0 [&_span]:whitespace-normal [&_span]:[overflow-wrap:anywhere]" : "h-6 max-w-48 [&_span]:truncate", tones[color])} {...props} />;
 }

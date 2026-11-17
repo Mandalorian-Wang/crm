@@ -66,6 +66,7 @@ export function OrganizationTypeTag({
 					</ColorTag>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
+					sizing="content"
 					align="start"
 					onClick={(event) => event.stopPropagation()}
 					onKeyDown={(event) => event.stopPropagation()}
@@ -84,7 +85,7 @@ export function OrganizationTypeTag({
 						<DropdownMenuRadioItem value="none">No type</DropdownMenuRadioItem>
 						{active.map((option) => (
 							<DropdownMenuRadioItem key={option.id} value={option.id}>
-								<ColorTag color={option.color}>
+								<ColorTag color={option.color} wrap>
 									<span>{option.label}</span>
 								</ColorTag>
 							</DropdownMenuRadioItem>
