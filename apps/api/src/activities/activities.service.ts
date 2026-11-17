@@ -6,6 +6,7 @@ import {
 	Logger,
 	NotFoundException,
 } from "@nestjs/common";
+import { companyMemberIds } from "../companies/company-members";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { blankToNull } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
@@ -18,6 +19,7 @@ import type {
 	TimelineInput,
 	TimelineResult,
 } from "./activities.contracts";
+import { assertActivityReplay } from "./activity-replay";
 
 const AUTHOR_SELECT = {
 	id: true,
@@ -78,7 +80,27 @@ export class ActivitiesService {
 	) {}
 
 	async timeline(input: TimelineInput): Promise<TimelineResult> {
-		const where = this.anchor(input);
+		const where =
+			input.includeLinkedContacts &&
+			input.companyId &&
+			!input.contactId &&
+			!input.dealId
+				? {
+						OR: [
+							{ companyId: input.companyId },
+							{
+								companyId: null,
+								contactId: {
+									in: [
+										...((
+											await companyMemberIds(this.db, [input.companyId])
+										).get(input.companyId) ?? []),
+									],
+								},
+							},
+						],
+					}
+				: this.anchor(input);
 		Object.assign(where, filterClause(input.filter));
 
 		const rows = await this.db.activity.findMany({
@@ -132,23 +154,64 @@ export class ActivitiesService {
 		actingUserId: string,
 	): Promise<ActivityEntry> {
 		const companyId = await this.resolveCompanyId(input);
+		if (
+			companyId &&
+			!(await this.db.company.findFirst({
+				where: { id: companyId, archivedAt: null },
+				select: { id: true },
+			}))
+		)
+			throw new BadRequestException("Organization is missing or archived.");
+		if (input.contactId) {
+			const contact = await this.db.contact.findFirst({
+				where: { id: input.contactId, archivedAt: null },
+				select: { id: true },
+			});
+			if (!contact)
+				throw new BadRequestException("Inbound user is missing or archived.");
+			if (
+				companyId &&
+				!(await companyMemberIds(this.db, [companyId]))
+					.get(companyId)
+					?.has(input.contactId)
+			)
+				throw new BadRequestException(
+					"Choose an inbound user linked to this organization.",
+				);
+		}
 
 		const isTask = input.type === ActivityType.TASK;
 
-		const activity = await this.db.activity.create({
-			data: {
-				type: input.type,
-				subject: blankToNull(input.subject ?? ""),
-				body: blankToNull(input.body ?? ""),
-				occurredAt: parseDate(input.occurredAt) ?? new Date(),
-				dueAt: isTask ? parseDate(input.dueAt) : null,
-				companyId,
-				contactId: input.contactId ?? null,
-				dealId: input.dealId ?? null,
-				createdById: actingUserId,
-			},
-			select: ENTRY_SELECT,
-		});
+		const data = {
+			type: input.type,
+			subject: blankToNull(input.subject ?? ""),
+			body: blankToNull(input.body ?? ""),
+			occurredAt: parseDate(input.occurredAt) ?? new Date(),
+			dueAt: isTask ? parseDate(input.dueAt) : null,
+			companyId,
+			contactId: input.contactId ?? null,
+			dealId: input.dealId ?? null,
+			createdById: actingUserId,
+		};
+		const id = input.requestId
+			? `activity:${actingUserId}:${input.requestId}`
+			: undefined;
+		if (id)
+			await this.db.activity.createMany({
+				data: [{ id, ...data }],
+				skipDuplicates: true,
+			});
+		const activity = id
+			? await this.db.activity.findUniqueOrThrow({
+					where: { id },
+					select: ENTRY_SELECT,
+				})
+			: await this.db.activity.create({ data, select: ENTRY_SELECT });
+		if (id)
+			assertActivityReplay(activity, {
+				...data,
+				occurredAt: input.occurredAt ? data.occurredAt : undefined,
+			});
 
 		await this.stamp.touch(
 			{ companyId, contactId: input.contactId, dealId: input.dealId },

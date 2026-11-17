@@ -74,6 +74,48 @@ export function validateFieldFilters(
 }
 
 export function operationGuidance(operation: string, currentUserId: string) {
+	if (operation === "companies.customerContext")
+		return {
+			purpose:
+				"Read this before summarizing customer progress or planning follow-up. Includes organization, linked people, daily notes, inbound activity notes, outreach history and sync freshness. No external email or chat is sent.",
+			completeness:
+				"Results are bounded. Follow activities.nextCursor using activities.timeline with companyId, filter:notes, includeLinkedContacts:true. Follow contactHistory.nextCursor using companies.contactHistory. If dailyNotesHasMore, read companies.dailyNotes. Image bodies are omitted here; imageCount indicates attachments.",
+			evidence:
+				"Preserve source links, confirmed facts, uncertainty and next steps. Actual occurredAt differs from createdAt. Lack of a CRM record is not proof nobody contacted the customer. Do not infer authorship or manual/automatic changes from updatedAt alone.",
+		};
+	if (
+		operation === "companies.contactHistory" ||
+		operation === "companies.logContact"
+	)
+		return {
+			purpose:
+				"Record or review a verified customer interaction. logContact writes CRM history only; it does not send email. Use actual past occurredAt with timezone, channel, linked contactId and evidence in body.",
+			retries:
+				"Use a stable requestId for the same interaction. Use a new requestId for a different interaction. Read contactHistory first to avoid duplicate outreach. Follow nextCursor until null; q searches evidence text.",
+		};
+	if (operation === "activities.create")
+		return {
+			purpose:
+				"Append inbound-user notes or meeting summaries using contactId. Keep confirmed progress, next steps, source evidence and uncertainty. Use occurredAt for actual event time; createdAt is recording time.",
+			retries:
+				"Provide one UUID requestId per logical note and reuse it on retry. Reusing it with different content is rejected. Do not overwrite historical notes. A note about a planned meeting does not mean the meeting happened.",
+		};
+	if (operation === "companies.updateFollowUp")
+		return {
+			status:
+				"NOT_CONTACTED, CONTACTED, WAITING, COMPLETED. Update only from explicit evidence. Email sent is CONTACTED, not proof of reply or completion. nextFollowUp is an explicit Shanghai calendar date or null, never an inferred commitment.",
+		};
+	if (operation === "users.setCompanyFavorite")
+		return {
+			scope:
+				"Set or clear the current API key user's personal favorite. It never changes another member's favorites. List with companies.list favorites:mine.",
+		};
+	if (operation === "companies.syncStatus")
+		return {
+			freshness:
+				"Read status, lastAttempt and lastSuccess separately. RUNNING or INTERRUPTED is not a successful fresh sync. Synced Cloud/billing values are not manual sales progress.",
+		};
+
 	if (operation === "companies.list" || operation === "contacts.list")
 		return {
 			projection:

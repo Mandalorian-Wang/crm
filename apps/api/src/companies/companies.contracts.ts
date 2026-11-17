@@ -52,6 +52,11 @@ export const companyUpdateArgs = z.object({
 	data: companyUpdateInput,
 });
 
+export const customerContextInput = z.object({
+	id: z.string(),
+	limit: z.number().int().min(1).max(100).default(30),
+});
+
 export const companyIdInput = z.object({ id: z.string() });
 
 export const setPrimaryContactInput = z.object({

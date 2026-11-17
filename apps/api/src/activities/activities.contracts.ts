@@ -37,6 +37,7 @@ const TIMELINE_FILTERS = [
 export type TimelineFilter = (typeof TIMELINE_FILTERS)[number];
 
 export const timelineInput = z.object({
+	includeLinkedContacts: z.boolean().default(false),
 	companyId: z.string().optional(),
 	contactId: z.string().optional(),
 	dealId: z.string().optional(),
@@ -55,6 +56,7 @@ export const timelineCountsInput = z.object({
 
 export const activityCreateInput = z
 	.object({
+		requestId: z.uuid().optional(),
 		type: composableEnum,
 		subject: z.string().trim().optional(),
 		body: z.string().trim().optional(),

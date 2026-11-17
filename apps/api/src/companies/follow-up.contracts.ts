@@ -55,3 +55,25 @@ export const syncStatusOutput = z.array(
 		lastSuccess: z.string().nullable(),
 	}),
 );
+
+export const contactHistoryInput = z.object({
+	id: z.string(),
+	cursor: z.string().optional(),
+	limit: z.number().int().min(1).max(100).default(30),
+	q: z.string().trim().max(200).default(""),
+});
+export const contactHistoryOutput = z.object({
+	entries: z.array(
+		z.object({
+			id: z.string(),
+			companyId: z.string(),
+			contactId: z.string().nullable(),
+			channel: z.string(),
+			body: z.string(),
+			occurredAt: z.string(),
+			createdAt: z.string(),
+			author: z.string(),
+		}),
+	),
+	nextCursor: z.string().nullable(),
+});

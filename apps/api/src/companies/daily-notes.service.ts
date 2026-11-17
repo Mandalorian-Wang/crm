@@ -27,9 +27,10 @@ export function noteDay(date: Date) {
 @Injectable()
 export class DailyNotesService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
-	async list(companyId: string) {
+	async list(companyId: string, limit?: number) {
 		const notes = await this.db.organizationDailyNote.findMany({
 			where: { companyId },
+			take: limit,
 			orderBy: [{ createdAt: "desc" }, { id: "desc" }],
 			include: { updatedBy: { select: { name: true } } },
 		});

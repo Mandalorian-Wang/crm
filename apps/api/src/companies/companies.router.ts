@@ -28,9 +28,11 @@ import {
 	companySetPrimaryContactOutput,
 	companySummaryOutput,
 	companyUpdateArgs,
+	customerContextInput,
 	setPrimaryContactInput,
 } from "./companies.contracts";
 import { CompaniesService } from "./companies.service";
+import { CustomerContextService } from "./customer-context.service";
 import {
 	dailyNoteCreateInput,
 	dailyNotesOutput,
@@ -38,6 +40,8 @@ import {
 } from "./daily-notes.contracts";
 import { DailyNotesService } from "./daily-notes.service";
 import {
+	contactHistoryInput,
+	contactHistoryOutput,
 	contactLogInput,
 	followUpBulkInput,
 	followUpBulkOutput,
@@ -51,10 +55,22 @@ import { FollowUpService } from "./follow-up.service";
 @UseMiddlewares(AuthMiddleware)
 export class CompaniesRouter {
 	constructor(
+		@Inject(CustomerContextService)
+		private readonly customerContextService: CustomerContextService,
 		@Inject(DailyNotesService) private readonly notes: DailyNotesService,
 		@Inject(CompaniesService) private readonly companies: CompaniesService,
 		@Inject(FollowUpService) private readonly followUps: FollowUpService,
 	) {}
+
+	@Query({ input: contactHistoryInput, output: contactHistoryOutput })
+	contactHistory(@Input() input: z.infer<typeof contactHistoryInput>) {
+		return this.followUps.history(input);
+	}
+
+	@Query({ input: customerContextInput })
+	customerContext(@Input() input: z.infer<typeof customerContextInput>) {
+		return this.customerContextService.read(input.id, input.limit);
+	}
 
 	@Query({
 		input: companyIdInput,

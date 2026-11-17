@@ -1,6 +1,7 @@
 import type { Db } from "@crm/db";
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
@@ -8,6 +9,7 @@ import type { z } from "zod";
 import { InjectDatabase } from "../database/database.constants";
 import { companyMemberIds } from "./company-members";
 import {
+	type contactHistoryInput,
 	type contactLogInput,
 	type followUpData,
 	followUpStatus,
@@ -16,6 +18,37 @@ import {
 @Injectable()
 export class FollowUpService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
+	async history(input: z.infer<typeof contactHistoryInput>) {
+		const rows = await this.db.organizationContactLog.findMany({
+			where: {
+				companyId: input.id,
+				...(input.q
+					? { body: { contains: input.q, mode: "insensitive" as const } }
+					: {}),
+			},
+			orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+			take: input.limit + 1,
+			cursor: input.cursor ? { id: input.cursor } : undefined,
+			skip: input.cursor ? 1 : undefined,
+			include: { createdBy: { select: { name: true } } },
+		});
+		const entries = rows.slice(0, input.limit);
+		return {
+			entries: entries.map((row) => ({
+				id: row.id,
+				companyId: row.companyId,
+				contactId: row.contactId,
+				channel: row.channel,
+				body: row.body,
+				occurredAt: row.occurredAt.toISOString(),
+				createdAt: row.createdAt.toISOString(),
+				author: row.createdBy.name,
+			})),
+			nextCursor:
+				rows.length > input.limit ? (entries.at(-1)?.id ?? null) : null,
+		};
+	}
+
 	async read(companyId: string) {
 		const company = await this.db.company.findUnique({
 			where: { id: companyId },
@@ -99,8 +132,7 @@ export class FollowUpService {
 				where: { id },
 			});
 			if (existing) {
-				if (existing.companyId !== input.companyId)
-					throw new BadRequestException("This request was already used.");
+				assertContactLogReplay(existing, input);
 				return;
 			}
 			await tx.organizationContactLog.createMany({
@@ -115,6 +147,11 @@ export class FollowUpService {
 					occurredAt: new Date(input.occurredAt),
 				},
 			});
+			const persisted = await tx.organizationContactLog.findUniqueOrThrow({
+				where: { id },
+			});
+			assertContactLogReplay(persisted, input);
+
 			await tx.company.updateMany({
 				where: { id: input.companyId, followUpStatus: "NOT_CONTACTED" },
 				data: { followUpStatus: "CONTACTED" },
@@ -159,4 +196,26 @@ export class FollowUpService {
 			}),
 		);
 	}
+}
+
+export function assertContactLogReplay(
+	stored: {
+		companyId: string;
+		contactId: string | null;
+		channel: string;
+		body: string;
+		occurredAt: Date;
+	},
+	input: z.infer<typeof contactLogInput>,
+) {
+	if (
+		stored.companyId !== input.companyId ||
+		stored.contactId !== input.contactId ||
+		stored.channel !== input.channel ||
+		stored.body !== input.body ||
+		stored.occurredAt.getTime() !== new Date(input.occurredAt).getTime()
+	)
+		throw new ConflictException(
+			"This requestId already records a different contact event. Read contactHistory before retrying.",
+		);
 }
