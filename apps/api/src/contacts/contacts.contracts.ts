@@ -12,6 +12,7 @@ import { recordFieldValues } from "../fields/fields.contracts";
 import { activityFacetInput, listInput } from "../trpc/list-input";
 
 export const contactListInput = listInput.extend({
+	fieldKeys: z.array(z.string()).max(100).optional(),
 	origin: z
 		.string()
 		.default("all")

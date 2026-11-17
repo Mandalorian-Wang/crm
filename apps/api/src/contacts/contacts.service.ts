@@ -151,6 +151,7 @@ export class ContactsService {
 		const tableFields = await this.fields.tableValuesFor(
 			"CONTACT",
 			rows.map((row) => row.id),
+			[...(input.fieldKeys ?? []), ...Object.keys(input.fields)],
 		);
 
 		return {

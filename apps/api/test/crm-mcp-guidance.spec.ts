@@ -52,8 +52,27 @@ test("MCP rejects unknown, non-filterable fields and option labels", () => {
 
 test("discovery gives identity-specific owner and integer box filter examples", () => {
 	const guidance = operationGuidance("companies.list", "sales-user");
-	expect(guidance.myCustomers).toEqual({ owner: ["sales-user"] });
-	expect(guidance.moreThanThreeBoxes).toEqual({
-		fields: { cloud_box_count: ["min:4"] },
+	expect(guidance).toMatchObject({
+		myCustomers: { owner: ["sales-user"] },
+		moreThanThreeBoxes: { fields: { cloud_box_count: ["min:4"] } },
 	});
+});
+
+test("MCP projection accepts known hidden fields and rejects typos", () => {
+	const fields = [
+		{
+			key: "cloud_settled_usage_usd",
+			label: "Usage",
+			type: "NUMBER" as const,
+			readOnly: true,
+			filterable: false,
+			options: [],
+		},
+	];
+	expect(() =>
+		validateFieldFilters({ fieldKeys: ["cloud_settled_usage_usd"] }, fields),
+	).not.toThrow();
+	expect(() =>
+		validateFieldFilters({ fieldKeys: ["billing_typo"] }, fields),
+	).toThrow("Unknown field");
 });

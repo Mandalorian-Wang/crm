@@ -6,6 +6,7 @@ import { fieldEntity, recordFieldValues } from "../fields/fields.contracts";
 import { activityFacetInput, listInput } from "../trpc/list-input";
 
 export const companyListInput = listInput.extend({
+	fieldKeys: z.array(z.string()).max(100).optional(),
 	favorites: z.string().default("all"),
 	followUpStatus: z.array(z.string()).default([]),
 	followUpDue: z.array(z.string()).default([]),

@@ -490,13 +490,18 @@ export class FieldsService {
 	async tableValuesFor(
 		entity: FieldEntity,
 		recordIds: string[],
+		includeKeys: string[] = [],
 	): Promise<Map<string, Record<string, FieldValueJson>>> {
 		const byRecord = new Map<string, Record<string, FieldValueJson>>();
 
 		if (recordIds.length === 0) return byRecord;
 
 		const definitions = await this.db.fieldDefinition.findMany({
-			where: { entity, archivedAt: null, showOnTable: true },
+			where: {
+				entity,
+				archivedAt: null,
+				OR: [{ showOnTable: true }, { key: { in: includeKeys } }],
+			},
 			include: WITH_OPTIONS,
 			orderBy: { position: "asc" },
 		});

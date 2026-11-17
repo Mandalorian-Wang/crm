@@ -60,6 +60,11 @@ test("CRM MCP authenticates a member and performs real CRUD with shared validati
 		return j.result.data;
 	}
 	async function call(operation: string, input: object = {}, write = false) {
+		const description = await client.callTool({
+			name: "crm_describe",
+			arguments: { operation },
+		});
+		expect(description.isError).not.toBe(true);
 		const r = await client.callTool({
 			name: write ? "crm_write" : "crm_read",
 			arguments: { operation, input },
@@ -92,6 +97,17 @@ test("CRM MCP authenticates a member and performs real CRUD with shared validati
 		});
 		expect(schema.isError).not.toBe(true);
 		companyId = (await call("companies.create", { name: id }, true)).id;
+		await expect(
+			call(
+				"companies.update",
+				{ id: companyId, data: { nmae: "Ignored typo" } },
+				true,
+			),
+		).rejects.toThrow("Unknown property");
+		await expect(
+			call("companies.list", { fields: { unknown_field: ["min:4"] } }),
+		).rejects.toThrow("not filterable");
+
 		await call(
 			"companies.update",
 			{ id: companyId, data: { name: `${id}-updated` } },

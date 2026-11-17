@@ -207,7 +207,10 @@ export class CompaniesService {
 		const ids = rows.map((row) => row.id);
 		const [queued, tableFields, members] = await Promise.all([
 			this.queue.queuedCompanies(ids),
-			this.fields.tableValuesFor("COMPANY", ids),
+			this.fields.tableValuesFor("COMPANY", ids, [
+				...(input.fieldKeys ?? []),
+				...Object.keys(input.fields),
+			]),
 			companyMemberIds(this.db, ids),
 		]);
 

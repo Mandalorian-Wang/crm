@@ -45,9 +45,18 @@ export function validateFieldFilters(
 	input: unknown,
 	fields: ReturnType<typeof describeFields>,
 ) {
-	const { fields: filters } = z
-		.object({ fields: z.record(z.string(), z.array(z.string())).default({}) })
+	const { fields: filters, fieldKeys } = z
+		.object({
+			fields: z.record(z.string(), z.array(z.string())).default({}),
+			fieldKeys: z.array(z.string()).default([]),
+		})
 		.parse(input);
+	for (const key of fieldKeys) {
+		if (!fields.some((field) => field.key === key))
+			throw new Error(
+				`Unknown field ${key}. Call crm_describe for available fields.`,
+			);
+	}
 	for (const [key, values] of Object.entries(filters)) {
 		const field = fields.find((candidate) => candidate.key === key);
 		if (!field?.filterable)
@@ -67,6 +76,8 @@ export function validateFieldFilters(
 export function operationGuidance(operation: string, currentUserId: string) {
 	if (operation === "companies.list" || operation === "contacts.list")
 		return {
+			projection:
+				"Use fieldKeys: [key, ...] to include fields even when hidden in UI tables. Filtered fields are included automatically. Use byId for complete details.",
 			pagination:
 				"page is 1-based, pageSize is at most 100. Continue until all total records are covered.",
 			filters:
