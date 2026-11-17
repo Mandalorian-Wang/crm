@@ -13,6 +13,7 @@ import { useSearchInput } from "@crm/ui/hooks/use-search-input";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { LinkUsersDialog } from "@/components/crm/link-users-dialog";
 import { CompanyCell } from "@/components/crm/company-cell";
 import { contactName } from "@/components/crm/contact-name";
 import { useFieldColumns } from "@/components/crm/fields/field-columns";
@@ -274,6 +275,28 @@ export function ContactsTable() {
 			actions={
 				<>
 					<AssignedToMe query={query} onChange={selection.clear} />
+					<Button
+						size="sm"
+						variant={
+							input.company.length === 1 && input.company[0] === "none"
+								? "contrast"
+								: "outline"
+						}
+						aria-pressed={
+							input.company.length === 1 && input.company[0] === "none"
+						}
+						onClick={() => {
+							selection.clear();
+							query.setFilter(
+								"company",
+								input.company.length === 1 && input.company[0] === "none"
+									? []
+									: ["none"],
+							);
+						}}
+					>
+						Without organization
+					</Button>
 					<SavedViewsMenu
 						entity="CONTACT"
 						table={table}
@@ -306,11 +329,21 @@ export function ContactsTable() {
 			selection={{
 				state: selection,
 				actions: (
-					<ContactsBulkActions
-						ids={settledIds}
-						onDone={selection.clear}
-						archived={input.archived}
-					/>
+					<>
+						{!input.archived ? (
+							<LinkUsersDialog
+								users={rows
+									.filter((row) => settledIds.includes(row.id))
+									.map((row) => ({ id: row.id, name: contactName(row) }))}
+								onDone={selection.clear}
+							/>
+						) : null}
+						<ContactsBulkActions
+							ids={settledIds}
+							onDone={selection.clear}
+							archived={input.archived}
+						/>
+					</>
 				),
 				rowLabel: (row) => contactName(row),
 			}}

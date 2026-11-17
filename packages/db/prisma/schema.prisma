@@ -490,6 +490,7 @@ model CompanyEnrichment {
 }
 
 model Contact {
+  registrationSourceManual Boolean @default(false)
   id          String  @id @default(cuid())
   firstName   String
   lastName    String?

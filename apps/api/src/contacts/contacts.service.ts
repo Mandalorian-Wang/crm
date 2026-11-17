@@ -568,7 +568,7 @@ export class ContactsService {
 
 		if (companyId) {
 			const company = await this.db.company.findUnique({
-				where: { id: companyId },
+				where: { id: companyId, archivedAt: null },
 				select: { id: true },
 			});
 			if (!company) {
@@ -578,7 +578,7 @@ export class ContactsService {
 
 		const ids = [...new Set(input.ids)];
 		const { count } = await this.db.contact.updateMany({
-			where: { id: { in: ids } },
+			where: { id: { in: ids }, archivedAt: null },
 			data: { companyId },
 		});
 

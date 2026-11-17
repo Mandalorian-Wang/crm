@@ -80,11 +80,31 @@ export class ActivitiesService {
 	) {}
 
 	async timeline(input: TimelineInput): Promise<TimelineResult> {
-		const where =
-			input.includeLinkedContacts &&
-			input.companyId &&
-			!input.contactId &&
-			!input.dealId
+		if (
+			input.linkedContactNotesOnly &&
+			(!input.companyId || input.contactId || input.dealId)
+		) {
+			throw new BadRequestException(
+				"Linked user notes require an organization ID only.",
+			);
+		}
+		const where: Prisma.ActivityWhereInput = input.linkedContactNotesOnly
+			? {
+					contactId: {
+						in: input.companyId
+							? [
+									...((await companyMemberIds(this.db, [input.companyId])).get(
+										input.companyId,
+									) ?? []),
+								]
+							: [],
+					},
+					type: { in: ["NOTE", "CALL", "EMAIL", "MEETING"] },
+				}
+			: input.includeLinkedContacts &&
+					input.companyId &&
+					!input.contactId &&
+					!input.dealId
 				? {
 						OR: [
 							{ companyId: input.companyId },
@@ -101,7 +121,10 @@ export class ActivitiesService {
 						],
 					}
 				: this.anchor(input);
-		Object.assign(where, filterClause(input.filter));
+		Object.assign(
+			where,
+			filterClause(input.linkedContactNotesOnly ? "notes" : input.filter),
+		);
 
 		const rows = await this.db.activity.findMany({
 			where,

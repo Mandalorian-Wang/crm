@@ -25,6 +25,7 @@ export class CustomerContextService {
 					filter: "notes",
 					limit,
 					includeLinkedContacts: true,
+					linkedContactNotesOnly: false,
 				}),
 				this.followUps.syncStatus(),
 			]);

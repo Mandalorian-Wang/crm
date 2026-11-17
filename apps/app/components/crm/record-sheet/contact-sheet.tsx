@@ -20,6 +20,7 @@ import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { LinkUsersDialog } from "@/components/crm/link-users-dialog";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
 import { ContactEnrichmentAction } from "@/components/crm/enrichment-actions";
@@ -185,11 +186,18 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 			stats={
 				contact ? (
 					<DetailSheetStats>
-						<DetailSheetStat label="Company">
+						<DetailSheetStat label="Organization">
 							{contact.company ? (
-								<CompanyStat company={contact.company} />
+								<div className="space-y-2">
+									<CompanyStat company={contact.company} />
+									<LinkUsersDialog
+										users={[{ id: contact.id, name: contactName(contact) }]}
+									/>
+								</div>
 							) : (
-								<EmptyCellValue />
+								<LinkUsersDialog
+									users={[{ id: contact.id, name: contactName(contact) }]}
+								/>
 							)}
 						</DetailSheetStat>
 						<DetailSheetStat label="Email">

@@ -162,7 +162,8 @@ export class FieldsService {
 			);
 
 		if (
-			isSourceManagedField(existing.key) &&
+			(isSourceManagedField(existing.key) ||
+				existing.key === "registration_source") &&
 			(data.type !== undefined ||
 				data.agentFilled !== undefined ||
 				data.agentBrief !== undefined ||
@@ -691,6 +692,15 @@ export class FieldsService {
 		const definitions = await this.definitionsFor(entity, tx);
 
 		try {
+			if (
+				entity === "CONTACT" &&
+				Object.hasOwn(values, "registration_source")
+			) {
+				await tx.contact.update({
+					where: { id: recordId },
+					data: { registrationSourceManual: true },
+				});
+			}
 			await writeValues(tx, entity, recordId, definitions, values);
 		} catch (error) {
 			if (error instanceof FieldValueError) {

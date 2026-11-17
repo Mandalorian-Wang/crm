@@ -1,14 +1,21 @@
 "use client";
 import { Button } from "@crm/ui/components/button";
 import { NoteTimelineDay } from "@crm/ui/components/note-composer";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { TimelineEntry } from "../timeline/timeline-entry";
 import { DailyNoteComposer, type DailyNoteDraft } from "./daily-note-composer";
 import { NoteImages } from "./note-images";
 import { NoteContent } from "./note-mention-editor";
+import { RecordLink } from "./record-link";
 
 function timestamp(value: string) {
 	return new Intl.DateTimeFormat("en-GB", {
@@ -80,9 +87,7 @@ export function CompanyDailyNotes({ companyId }: { companyId: string }) {
 					</div>
 				) : null}
 				{notes.data?.length === 0 ? (
-					<p className="py-4 text-sm text-muted-foreground">
-						No daily notes yet.
-					</p>
+					<LinkedUserNotes companyId={companyId} />
 				) : null}
 				{Array.from(
 					Map.groupBy(notes.data ?? [], (note) =>
@@ -204,5 +209,67 @@ function Note({
 			)}
 			{update.error ? <p role="alert">{update.error.message}</p> : null}
 		</li>
+	);
+}
+
+function LinkedUserNotes({ companyId }: { companyId: string }) {
+	const trpc = useTRPC();
+	const history = useInfiniteQuery({
+		...trpc.activities.timeline.infiniteQueryOptions(
+			{ companyId, linkedContactNotesOnly: true, filter: "notes" },
+			{ getNextPageParam: (page) => page.nextCursor ?? undefined },
+		),
+		refetchInterval: 60_000,
+	});
+	const entries = history.data?.pages.flatMap((page) => page.entries) ?? [];
+	return (
+		<div className="space-y-3 py-3">
+			<p className="text-sm text-muted-foreground">
+				No organization notes yet. Notes from linked inbound users appear below.
+			</p>
+			{history.isPending ? <p role="status">Loading user notes…</p> : null}
+			{history.error ? (
+				<div role="alert">
+					{history.error.message}
+					<Button variant="outline" onClick={() => history.refetch()}>
+						Retry
+					</Button>
+				</div>
+			) : null}
+			{history.isSuccess && entries.length === 0 ? (
+				<p className="text-sm text-muted-foreground">
+					No notes from linked users yet.
+				</p>
+			) : null}
+			{entries.map((entry) => (
+				<NoteTimelineDay
+					key={entry.id}
+					label={timestamp(entry.occurredAt ?? entry.createdAt)}
+				>
+					<li className="pt-3 text-sm">
+						From{" "}
+						{entry.contact ? (
+							<RecordLink kind="contact" id={entry.contact.id}>
+								{[entry.contact.firstName, entry.contact.lastName]
+									.filter(Boolean)
+									.join(" ")}
+							</RecordLink>
+						) : (
+							"inbound user"
+						)}
+					</li>
+					<TimelineEntry entry={entry} anchor={{ companyId }} />
+				</NoteTimelineDay>
+			))}
+			{history.hasNextPage ? (
+				<Button
+					variant="outline"
+					disabled={history.isFetchingNextPage}
+					onClick={() => history.fetchNextPage()}
+				>
+					Show older user notes
+				</Button>
+			) : null}
+		</div>
 	);
 }

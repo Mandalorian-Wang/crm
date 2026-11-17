@@ -117,7 +117,6 @@ export function isSourceManagedField(key: string): boolean {
 	return (
 		key.startsWith("cloud_") ||
 		key.startsWith("github_") ||
-		key === "registration_source" ||
 		key === "linear_customer_id" ||
 		key === "linear_customer_name"
 	);

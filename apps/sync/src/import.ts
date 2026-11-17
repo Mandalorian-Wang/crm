@@ -11,6 +11,10 @@ async function updateRegistrationSource(
 	tx: Prisma.TransactionClient,
 	contactId: string,
 ) {
+	const [contact] = await tx.$queryRaw<{ registrationSourceManual: boolean }[]>`
+		SELECT "registrationSourceManual" FROM "contact" WHERE "id" = ${contactId} FOR UPDATE
+	`;
+	if (!contact || contact.registrationSourceManual) return;
 	const identities = await tx.importedRecord.findMany({
 		where: { kind: "contact", recordId: contactId },
 		select: { source: true },

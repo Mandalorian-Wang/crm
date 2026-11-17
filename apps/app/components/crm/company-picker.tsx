@@ -21,7 +21,7 @@ export function CompanyPicker({
 	id,
 	value,
 	onValueChange,
-	placeholder = "Choose a company",
+	placeholder = "Link to organization",
 	none,
 	selected,
 	disabled,
@@ -78,8 +78,8 @@ export function CompanyPicker({
 			selectedOption={current}
 			disabled={disabled}
 			placeholder={placeholder}
-			searchPlaceholder="Search companies…"
-			empty={companies.isFetching ? "Searching…" : "No company matches."}
+			searchPlaceholder="Search organizations…"
+			empty={companies.isFetching ? "Searching…" : "No organization matches."}
 			search={text}
 			onSearchChange={setText}
 			stale={stale}
@@ -117,14 +117,14 @@ export function CompanyMenuSearch({
 		>
 			<CommandInput
 				ref={inputRef}
-				placeholder="Search companies…"
+				placeholder="Search organizations…"
 				value={text}
 				onValueChange={setText}
 				autoFocus
 			/>
 			<CommandList>
 				<CommandEmpty>
-					{companies.isFetching ? "Searching…" : "No company matches."}
+					{companies.isFetching ? "Searching…" : "No organization matches."}
 				</CommandEmpty>
 				<CommandGroup>
 					{none && !query.trim() ? (
@@ -158,7 +158,7 @@ export function CompanyMenuSearch({
 }
 
 export function InlineCompanyField({
-	label = "Company",
+	label = "Organization",
 	value,
 	onSave,
 	saving = false,

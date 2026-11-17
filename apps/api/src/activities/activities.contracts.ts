@@ -38,6 +38,7 @@ export type TimelineFilter = (typeof TIMELINE_FILTERS)[number];
 
 export const timelineInput = z.object({
 	includeLinkedContacts: z.boolean().default(false),
+	linkedContactNotesOnly: z.boolean().default(false),
 	companyId: z.string().optional(),
 	contactId: z.string().optional(),
 	dealId: z.string().optional(),
