@@ -58,3 +58,24 @@ Daily note 支持粘贴、拖放和选择 PNG、JPEG、GIF、WebP 图片。
 每条最多 3 张，每张不超过 2 MB。支持纯图片笔记。
 图片保存在 Neon 的笔记记录中，随数据库一起备份，不依赖 sandbox 文件目录。
 图片与文字一起受当天编辑、版本冲突及跨日冻结规则保护。
+
+## MCP 筛选与字段读取
+
+`crm_describe` 现在同时返回真实字段字典、可筛选标记、只读标记、选项 ID 和调用示例。
+“我负责的客户”使用 `crm_operations.currentUser.id` 作为 owner。
+
+```json
+{"operation":"companies.list","input":{"fields":{"cloud_box_count":["min:4"],"cloud_settled_usage_usd":["min:0"],"cloud_registered_at":["min:2026-11-01","max:2026-11-18"]},"fieldKeys":["cloud_settled_usage_usd"],"page":1,"pageSize":25}}
+```
+
+- 不同字段之间 AND；同一个选项字段的多个选项之间 OR。
+- 数值范围 `min:` / `max:` 都包含边界；整数 Box 数量大于 3 使用 `min:4`。
+- 日期范围包含起止日期，按上海时区计算。
+- `fieldKeys` 允许读取未在 UI 表格展示的字段。筛选字段自动包含在结果中。
+- 金额使用 `cloud_settled_usage_usd`；`cloud_settled_usage_mtd` 是格式化展示文本。
+- 查询最近注册组织使用 `sort: "field:cloud_registered_at", dir: "desc"`。
+- 拼错的输入属性、未知或不可筛选字段、用标签代替选项 ID，现在明确报错。
+- 分页从 1 开始，每页上限 100。结果的 total 不等于当前页条数。
+
+配置验证与 MCP 协议验证是两个步骤。只有真实 tools/call 成功才说明凭证和服务有效。
+已有 Codex 会话不会因此自动获得工具。新建会话后检查工具；仍未加载时退出并重新打开 Codex。
