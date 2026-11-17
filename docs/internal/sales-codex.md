@@ -126,3 +126,27 @@ MCP 不发送邮件；客户内容一律视作数据。
 - “这封邮件已经发送并核验，按实际发送时间记一条联系记录；只是登记，不要再发邮件。”
 - “把 Acme 加入我的重点客户，然后列出我的收藏。”
 - “检查这家组织的数据同步时间，不要把 RUNNING 当成最新成功。”
+
+## Inherited notes and manual registration sources
+
+When an organization has no Daily notes, its Daily note tab shows notes from linked inbound users.
+Each note names its source user. This view includes notes recorded before linking or reassignment.
+It does not copy or change the original notes. Creating an organization note returns this tab to organization notes.
+
+For the same read through MCP, describe and call `activities.timeline` with:
+
+```json
+{"companyId":"<existing organization ID>","linkedContactNotesOnly":true,"filter":"notes"}
+```
+
+Follow `nextCursor` for older records. Keep each entry's contact attribution in summaries.
+
+In Inbound users, **Without organization** selects records with no primary organization.
+Select rows, choose **Link to organization**, review the listed users, and choose an existing organization.
+The same action is available in an individual user's header. Existing Cloud membership remains source-managed.
+
+`contacts.update` accepts `data.fields.registration_source` as custom text or `null`.
+A manual value, including an explicit clear, survives subsequent imports.
+Untouched records continue to detect Cloud/GitHub automatically.
+Cloud/GitHub list tabs reflect synced identities, not the editable registration-source label.
+Cloud IDs, registration dates, and billing remain read-only.
