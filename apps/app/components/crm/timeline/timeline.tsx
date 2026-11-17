@@ -8,12 +8,12 @@ import Task from "@carbon/icons-react/es/Task";
 import Time from "@carbon/icons-react/es/Time";
 import { Button } from "@crm/ui/components/button";
 import type { CarbonIcon } from "@crm/ui/components/icon";
+import { NoteTimelineDay } from "@crm/ui/components/note-composer";
 import { Spinner } from "@crm/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
-import { cn } from "@crm/ui/lib/utils";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
-import { DetailSheetEmpty, SECTION_TITLE } from "@/components/detail-sheet";
+import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { SEARCH_PARAM } from "@/lib/search-param-keys";
 import { useTRPC } from "@/lib/trpc/client";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -141,16 +141,11 @@ function TimelineDay({
 	anchor: TimelineAnchor;
 }) {
 	return (
-		<section>
-			<h3 className={cn("sticky top-0 z-10 bg-popover py-2", SECTION_TITLE)}>
-				{label}
-			</h3>
-			<ul className="divide-y">
-				{entries.map((entry) => (
-					<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
-				))}
-			</ul>
-		</section>
+		<NoteTimelineDay label={label}>
+			{entries.map((entry) => (
+				<TimelineEntry key={entry.id} entry={entry} anchor={anchor} />
+			))}
+		</NoteTimelineDay>
 	);
 }
 

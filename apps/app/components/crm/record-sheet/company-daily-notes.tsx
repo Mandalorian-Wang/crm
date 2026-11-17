@@ -1,18 +1,13 @@
 "use client";
 import { Button } from "@crm/ui/components/button";
+import { NoteTimelineDay } from "@crm/ui/components/note-composer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-	DetailSheetBody,
-	DetailSheetMain,
-	DetailSheetProse,
-	DetailSheetSection,
-} from "@/components/detail-sheet";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { DailyNoteComposer, type DailyNoteDraft } from "./daily-note-composer";
+import { NoteImages } from "./note-images";
 import { NoteContent } from "./note-mention-editor";
 
 function timestamp(value: string) {
@@ -47,67 +42,70 @@ export function CompanyDailyNotes({ companyId }: { companyId: string }) {
 		}),
 	);
 	return (
-		<DetailSheetBody>
-			<DetailSheetMain>
-				<DetailSheetSection title="Daily note">
-					<DetailSheetProse>
-						Append notes throughout the day. Notes become read-only at midnight,
-						Beijing time (UTC+8). Newest notes appear first.
-					</DetailSheetProse>
-					<form
-						className="space-y-3"
-						onSubmit={(event) => {
-							event.preventDefault();
-							if (reading || add.isPending) return;
-							add.mutate({ companyId, requestId, ...draft });
-						}}
-					>
-						<DailyNoteComposer
-							onReading={setReading}
-							label="New daily note"
-							value={draft}
-							onChange={setDraft}
-							disabled={add.isPending || reading}
-						/>
-						{add.error ? <p role="alert">{add.error.message}</p> : null}
-						<Button
-							type="submit"
-							disabled={
-								(!draft.body.trim() && !draft.images.length) ||
-								add.isPending ||
-								reading
-							}
-						>
-							{add.isPending ? "Saving…" : "Add note"}
+		<div className="flex min-h-0 flex-1 flex-col">
+			<div className="shrink-0 border-b px-5 py-3">
+				<form
+					className="space-y-3"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (
+							reading ||
+							add.isPending ||
+							(!draft.body.trim() && !draft.images.length)
+						)
+							return;
+						add.mutate({ companyId, requestId, ...draft });
+					}}
+				>
+					<DailyNoteComposer
+						onReading={setReading}
+						label="New daily note"
+						value={draft}
+						onChange={setDraft}
+						disabled={add.isPending || reading}
+					/>
+					{add.error ? <p role="alert">{add.error.message}</p> : null}
+				</form>
+			</div>
+			<div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+				{notes.isPending ? (
+					<p className="py-4 text-sm text-muted-foreground">Loading notes…</p>
+				) : null}
+				{notes.error ? (
+					<div role="alert">
+						{notes.error.message}
+						<Button variant="outline" onClick={() => notes.refetch()}>
+							Retry
 						</Button>
-					</form>
-					{notes.isPending ? (
-						<DetailSheetProse>Loading notes…</DetailSheetProse>
-					) : null}
-					{notes.error ? (
-						<div role="alert">
-							{notes.error.message}
-							<Button variant="outline" onClick={() => notes.refetch()}>
-								Retry
-							</Button>
-						</div>
-					) : null}
-					{notes.data?.length === 0 ? (
-						<DetailSheetProse>No daily notes yet.</DetailSheetProse>
-					) : null}
-					<ol className="space-y-6">
-						{notes.data?.map((note) => (
-							<Note
-								key={note.id}
-								note={note}
-								companyId={companyId}
-								refresh={refresh}
-							/>
-						))}
-					</ol>
-				</DetailSheetSection>
-			</DetailSheetMain>
-		</DetailSheetBody>
+					</div>
+				) : null}
+				{notes.data?.length === 0 ? (
+					<p className="py-4 text-sm text-muted-foreground">
+						No daily notes yet.
+					</p>
+				) : null}
+				{Array.from(
+					Map.groupBy(notes.data ?? [], (note) =>
+						new Intl.DateTimeFormat("en-GB", {
+							timeZone: "Asia/Shanghai",
+							dateStyle: "full",
+						}).format(new Date(note.createdAt)),
+					),
+					([day, entries]) => (
+						<NoteTimelineDay key={day} label={day}>
+							{entries.map((note) => (
+								<Note
+									key={note.id}
+									note={note}
+									companyId={companyId}
+									refresh={refresh}
+								/>
+							))}
+						</NoteTimelineDay>
+					),
+				)}
+			</div>
+		</div>
 	);
 }
 function Note({
@@ -141,11 +139,20 @@ function Note({
 		}),
 	);
 	return (
-		<li className="space-y-3 border-t pt-4">
+		<li className="space-y-2 py-3 text-sm">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<span className="text-sm text-muted-foreground">
-					{timestamp(note.createdAt)} · {note.editable ? "Today" : "Read-only"}
+					Last updated by {note.updatedBy} · {timestamp(note.updatedAt)}
 				</span>
+				{!note.editable ? (
+					<span
+						role="img"
+						aria-label="Locked note"
+						title="Notes become read-only at midnight (Shanghai)"
+					>
+						🔒
+					</span>
+				) : null}
 				{note.editable && !editing ? (
 					<Button
 						variant="ghost"
@@ -170,64 +177,32 @@ function Note({
 					className="space-y-3"
 					onSubmit={(event) => {
 						event.preventDefault();
-						if (reading || update.isPending) return;
+						if (
+							reading ||
+							update.isPending ||
+							(!draft.body.trim() && !draft.images.length)
+						)
+							return;
 						update.mutate({ companyId, id: note.id, version, ...draft });
 					}}
 				>
 					<DailyNoteComposer
 						onReading={setReading}
 						label="Edit daily note"
+						submitLabel="Save changes"
+						onCancel={() => setEditing(false)}
 						value={draft}
 						onChange={setDraft}
 						disabled={update.isPending || reading}
 					/>
-					<div className="flex gap-2">
-						<Button
-							type="submit"
-							disabled={
-								(!draft.body.trim() && !draft.images.length) ||
-								update.isPending ||
-								reading
-							}
-						>
-							Save changes
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							disabled={update.isPending || reading}
-							onClick={() => setEditing(false)}
-						>
-							Cancel
-						</Button>
-					</div>
 				</form>
 			) : (
 				<div className="space-y-3">
 					<NoteContent body={note.body} mentions={note.mentions} />
-					{note.images.map((image) => (
-						<a
-							key={image.id}
-							href={`data:${image.type};base64,${image.base64}`}
-							download={image.name}
-							title="Download image"
-						>
-							<Image
-								src={`data:${image.type};base64,${image.base64}`}
-								alt={image.name}
-								width={960}
-								height={640}
-								unoptimized
-								className="h-auto max-h-96 w-auto max-w-full object-contain"
-							/>
-						</a>
-					))}
+					<NoteImages images={note.images} />
 				</div>
 			)}
 			{update.error ? <p role="alert">{update.error.message}</p> : null}
-			<p className="text-xs text-muted-foreground">
-				Last updated by {note.updatedBy} · {timestamp(note.updatedAt)} (UTC+8)
-			</p>
 		</li>
 	);
 }

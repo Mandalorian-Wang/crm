@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@crm/ui/components/button";
-import { Textarea } from "@crm/ui/components/textarea";
+import { InputGroupTextarea } from "@crm/ui/components/input-group";
 import {
 	adjustNoteMentions,
 	type NoteMention,
@@ -62,8 +62,8 @@ export function NoteMentionEditor({
 		});
 	};
 	return (
-		<div className="relative space-y-2">
-			<Textarea
+		<div className="relative w-full space-y-2">
+			<InputGroupTextarea
 				ref={editor}
 				aria-label={label}
 				aria-autocomplete="list"

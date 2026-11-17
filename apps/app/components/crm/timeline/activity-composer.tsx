@@ -4,11 +4,13 @@ import Calendar from "@carbon/icons-react/es/Calendar";
 import { Calendar as DayPicker } from "@crm/ui/components/calendar";
 import { Icon } from "@crm/ui/components/icon";
 import {
-	InputGroup,
-	InputGroupAddon,
 	InputGroupButton,
 	InputGroupTextarea,
 } from "@crm/ui/components/input-group";
+import {
+	NoteComposer,
+	NoteComposerFooter,
+} from "@crm/ui/components/note-composer";
 import {
 	Popover,
 	PopoverContent,
@@ -92,7 +94,7 @@ export function ActivityComposer({
 				submit();
 			}}
 		>
-			<InputGroup>
+			<NoteComposer>
 				<InputGroupTextarea
 					value={draft}
 					onChange={(event) => setDraft(event.target.value)}
@@ -111,7 +113,7 @@ export function ActivityComposer({
 					}}
 				/>
 
-				<InputGroupAddon align="block-end" className="gap-2 border-t">
+				<NoteComposerFooter>
 					<ToggleGroup
 						type="single"
 						value={type}
@@ -164,8 +166,8 @@ export function ActivityComposer({
 							{isTask ? "Add task" : `Log ${activityLabel(type).toLowerCase()}`}
 						</InputGroupButton>
 					)}
-				</InputGroupAddon>
-			</InputGroup>
+				</NoteComposerFooter>
+			</NoteComposer>
 		</form>
 	);
 }
