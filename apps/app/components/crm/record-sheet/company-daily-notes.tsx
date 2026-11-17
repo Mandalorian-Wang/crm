@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@crm/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,11 +12,8 @@ import {
 } from "@/components/detail-sheet";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
-import {
-	NoteContent,
-	type NoteDraft,
-	NoteMentionEditor,
-} from "./note-mention-editor";
+import { DailyNoteComposer, type DailyNoteDraft } from "./daily-note-composer";
+import { NoteContent } from "./note-mention-editor";
 
 function timestamp(value: string) {
 	return new Intl.DateTimeFormat("en-GB", {
@@ -26,17 +24,22 @@ function timestamp(value: string) {
 }
 export function CompanyDailyNotes({ companyId }: { companyId: string }) {
 	const trpc = useTRPC();
+	const [reading, setReading] = useState(false);
 	const client = useQueryClient();
 	const options = trpc.companies.dailyNotes.queryOptions({ id: companyId });
 	const notes = useQuery({ ...options, refetchInterval: 60_000 });
-	const [draft, setDraft] = useState<NoteDraft>({ body: "", mentions: [] });
+	const [draft, setDraft] = useState<DailyNoteDraft>({
+		body: "",
+		mentions: [],
+		images: [],
+	});
 	const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 	const refresh = () =>
 		client.invalidateQueries({ queryKey: options.queryKey });
 	const add = useMutation(
 		trpc.companies.addDailyNote.mutationOptions({
 			onSuccess: async () => {
-				setDraft({ body: "", mentions: [] });
+				setDraft({ body: "", mentions: [], images: [] });
 				setRequestId(crypto.randomUUID());
 				await refresh();
 				toast.success("Note saved.");
@@ -55,19 +58,25 @@ export function CompanyDailyNotes({ companyId }: { companyId: string }) {
 						className="space-y-3"
 						onSubmit={(event) => {
 							event.preventDefault();
+							if (reading || add.isPending) return;
 							add.mutate({ companyId, requestId, ...draft });
 						}}
 					>
-						<NoteMentionEditor
+						<DailyNoteComposer
+							onReading={setReading}
 							label="New daily note"
 							value={draft}
 							onChange={setDraft}
-							disabled={add.isPending}
+							disabled={add.isPending || reading}
 						/>
 						{add.error ? <p role="alert">{add.error.message}</p> : null}
 						<Button
 							type="submit"
-							disabled={!draft.body.trim() || add.isPending}
+							disabled={
+								(!draft.body.trim() && !draft.images.length) ||
+								add.isPending ||
+								reading
+							}
 						>
 							{add.isPending ? "Saving…" : "Add note"}
 						</Button>
@@ -111,10 +120,12 @@ function Note({
 	refresh: () => Promise<void>;
 }) {
 	const trpc = useTRPC();
+	const [reading, setReading] = useState(false);
 	const [editing, setEditing] = useState(false);
-	const [draft, setDraft] = useState<NoteDraft>({
+	const [draft, setDraft] = useState<DailyNoteDraft>({
 		body: note.body,
 		mentions: note.mentions,
+		images: note.images,
 	});
 	const [version, setVersion] = useState(note.version);
 	const update = useMutation(
@@ -140,7 +151,11 @@ function Note({
 						variant="ghost"
 						size="sm"
 						onClick={() => {
-							setDraft({ body: note.body, mentions: note.mentions });
+							setDraft({
+								body: note.body,
+								mentions: note.mentions,
+								images: note.images,
+							});
 							setVersion(note.version);
 							setEditing(true);
 							update.reset();
@@ -155,26 +170,32 @@ function Note({
 					className="space-y-3"
 					onSubmit={(event) => {
 						event.preventDefault();
+						if (reading || update.isPending) return;
 						update.mutate({ companyId, id: note.id, version, ...draft });
 					}}
 				>
-					<NoteMentionEditor
+					<DailyNoteComposer
+						onReading={setReading}
 						label="Edit daily note"
 						value={draft}
 						onChange={setDraft}
-						disabled={update.isPending}
+						disabled={update.isPending || reading}
 					/>
 					<div className="flex gap-2">
 						<Button
 							type="submit"
-							disabled={!draft.body.trim() || update.isPending}
+							disabled={
+								(!draft.body.trim() && !draft.images.length) ||
+								update.isPending ||
+								reading
+							}
 						>
 							Save changes
 						</Button>
 						<Button
 							type="button"
 							variant="outline"
-							disabled={update.isPending}
+							disabled={update.isPending || reading}
 							onClick={() => setEditing(false)}
 						>
 							Cancel
@@ -182,7 +203,26 @@ function Note({
 					</div>
 				</form>
 			) : (
-				<NoteContent body={note.body} mentions={note.mentions} />
+				<div className="space-y-3">
+					<NoteContent body={note.body} mentions={note.mentions} />
+					{note.images.map((image) => (
+						<a
+							key={image.id}
+							href={`data:${image.type};base64,${image.base64}`}
+							download={image.name}
+							title="Download image"
+						>
+							<Image
+								src={`data:${image.type};base64,${image.base64}`}
+								alt={image.name}
+								width={960}
+								height={640}
+								unoptimized
+								className="h-auto max-h-96 w-auto max-w-full object-contain"
+							/>
+						</a>
+					))}
+				</div>
 			)}
 			{update.error ? <p role="alert">{update.error.message}</p> : null}
 			<p className="text-xs text-muted-foreground">

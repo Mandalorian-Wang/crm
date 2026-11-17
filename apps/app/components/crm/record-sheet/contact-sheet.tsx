@@ -1,7 +1,6 @@
 "use client";
 
 import Email from "@carbon/icons-react/es/Email";
-import Partnership from "@carbon/icons-react/es/Partnership";
 import Star from "@carbon/icons-react/es/Star";
 import type { FieldValueJson } from "@crm/db/fields";
 import {
@@ -18,12 +17,9 @@ import {
 } from "@crm/ui/components/entity-logo";
 import { Icon } from "@crm/ui/components/icon";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
-import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { StatusIndicator } from "@crm/ui/components/status-indicator";
-import { TableCell } from "@crm/ui/components/table";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AgentPanel } from "@/components/crm/agent-panel";
 import { InlineCompanyField } from "@/components/crm/company-picker";
 import { contactName } from "@/components/crm/contact-name";
 import { ContactEnrichmentAction } from "@/components/crm/enrichment-actions";
@@ -37,12 +33,9 @@ import {
 } from "@/components/crm/inline-field";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { ContactSocials } from "@/components/crm/social-links";
-import { DealStageMenu } from "@/components/crm/stage-change";
-import { Timeline } from "@/components/crm/timeline/timeline";
 import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
-	DetailSheetEmpty,
 	DetailSheetProperties,
 	DetailSheetProperty,
 	DetailSheetProse,
@@ -60,7 +53,7 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { RecordActions } from "./record-actions";
-import { DealAmount, MetaLine, RecordSheetFrame } from "./record-parts";
+import { MetaLine, RecordSheetFrame } from "./record-parts";
 import { useOpenRecord, useRecordSheetView } from "./record-stack";
 
 type Contact = RouterOutputs["contacts"]["byId"];
@@ -72,19 +65,6 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	day: "numeric",
 	year: "numeric",
 };
-
-const DEAL_COLUMNS = [
-	{ id: "deal", header: "Deal", width: "w-[32%]", className: "pl-5" },
-	{ id: "role", header: "Role", width: "w-[16%]" },
-	{ id: "stage", header: "Stage", width: "w-[22%]" },
-	{
-		id: "amount",
-		header: "Amount",
-		width: "w-[16%]",
-		align: "right" as const,
-	},
-	{ id: "owner", header: "Owner", width: "w-[14%]" },
-];
 
 export function ContactSheet({ contactId }: { contactId: string }) {
 	const trpc = useTRPC();
@@ -118,23 +98,6 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 					value: "overview",
 					label: "Overview",
 					content: <ContactOverview contact={contact} />,
-				},
-				{
-					value: "deals",
-					label: "Deals",
-					count: contact.deals.length,
-					content: <ContactDeals contact={contact} />,
-				},
-				{
-					value: "activity",
-					label: "Activity",
-					content: <Timeline anchor={{ contactId: contact.id }} />,
-				},
-				{
-					value: "agent",
-					label: "Agent",
-					content: <AgentPanel record={{ kind: "contact", id: contact.id }} />,
-					keepMounted: true,
 				},
 			]
 		: [];
@@ -587,50 +550,5 @@ function Colleagues({
 				</button>
 			))}
 		</span>
-	);
-}
-
-function ContactDeals({ contact }: { contact: Contact }) {
-	const openRecord = useOpenRecord();
-
-	if (contact.deals.length === 0) {
-		return (
-			<DetailSheetEmpty
-				icon={Partnership}
-				title="Not on any deals"
-				description={`${contactName(contact)} is not attached to anything being sold yet. Deals are opened on the company, then people are added to them.`}
-			/>
-		);
-	}
-
-	return (
-		<SimpleTable variant="panel" columns={DEAL_COLUMNS}>
-			{contact.deals.map((deal) => (
-				<SimpleTableRow
-					key={deal.id}
-					clickable
-					onClick={() => openRecord({ kind: "deal", id: deal.id })}
-				>
-					<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
-						{deal.name}
-					</TableCell>
-					<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
-						{deal.role ?? <EmptyCellValue />}
-					</TableCell>
-					<TableCell className="px-3 py-2.5">
-						<DealStageMenu dealId={deal.id} stage={deal.stage} />
-					</TableCell>
-					<TableCell className="px-3 py-2.5 text-right">
-						<DealAmount
-							amountCents={deal.amountCents}
-							currency={deal.currency}
-						/>
-					</TableCell>
-					<TableCell className="px-3 py-2.5">
-						<OwnerCell owner={deal.owner} />
-					</TableCell>
-				</SimpleTableRow>
-			))}
-		</SimpleTable>
 	);
 }

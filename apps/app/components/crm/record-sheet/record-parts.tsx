@@ -69,7 +69,7 @@ export function RecordSheetFrame({
 					{stats}
 					<DetailSheetTabs
 						tabs={tabs}
-						value={tab}
+						value={tabs.some((item) => item.value === tab) ? tab : "overview"}
 						onValueChange={onTabChange}
 					/>
 				</>

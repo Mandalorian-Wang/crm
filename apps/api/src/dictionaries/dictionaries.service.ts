@@ -1,4 +1,4 @@
-import { isWorkspaceAdmin, workspaceRoleOf } from "@crm/auth/organization";
+import { workspaceRoleOf } from "@crm/auth/organization";
 import type { Db } from "@crm/db";
 import {
 	ORGANIZATION_TYPE_KEY,
@@ -27,7 +27,7 @@ export class DictionariesService {
 			}),
 		]);
 		return {
-			canManage: isWorkspaceAdmin(role),
+			canManage: role !== null,
 			options: options.map((option) => ({
 				id: option.id,
 				label: option.label,
@@ -42,9 +42,9 @@ export class DictionariesService {
 		userId: string,
 		input: z.infer<typeof organizationTypeInput>,
 	) {
-		if (!isWorkspaceAdmin(await workspaceRoleOf(userId)))
+		if (!(await workspaceRoleOf(userId)))
 			throw new ForbiddenException(
-				"Only an owner or admin can manage dictionaries.",
+				"Only CRM team members can manage dictionaries.",
 			);
 		await this.db.$transaction(async (tx) => {
 			await tx.$queryRaw`SELECT id FROM "fieldDefinition" WHERE entity = 'COMPANY' AND key = ${ORGANIZATION_TYPE_KEY} FOR UPDATE`;

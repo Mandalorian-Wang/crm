@@ -12,7 +12,7 @@ import Image from "next/image";
 import { useId, useRef, useState } from "react";
 import { z } from "zod";
 
-async function readImage(file: File): Promise<RequestImage> {
+export async function readImage(file: File): Promise<RequestImage> {
 	if (
 		file.size > REQUEST_IMAGES.maxBytes ||
 		!REQUEST_IMAGES.types.some((type) => type === file.type)

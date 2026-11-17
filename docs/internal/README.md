@@ -12,6 +12,7 @@
 | [本地开发 SOP](development.md) | 建立隔离环境、启动应用、开发、测试、提交 |
 | [线上发布 SOP](release.md) | 确认版本、备份、发布到 BoxLite、验收、代码回退 |
 | [运维与恢复 SOP](operations.md) | 同步排查、登录排查、数据库迁移、sandbox 重建 |
+| [销售 Codex 接入](sales-codex.md) | API key、MCP、自然语言管理客户和图片笔记 |
 | [发布记录模板](release-record-template.md) | 留存版本、验证结果、备份位置和回退决策 |
 
 ## 当前环境基线

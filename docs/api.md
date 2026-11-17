@@ -315,3 +315,9 @@ Read it before touching any amount, total, chart or rate.
 ## Linear customer read adapter
 
 The Linear module reads explicitly selected customers and creates issues from explicit CRM request submissions. It performs no research, scoring or identity matching. This is an additional exception to the vendor-client placement rule. Authenticated users select the customer; the API validates its workspace and reads customer requests. Binding only changes CRM fields. Linear writes are submitted requests and their image uploads, fixed to the configured project, team and CRM label. A deterministic issue UUID makes retries idempotent.
+
+## CRM MCP access
+
+`/api/mcp/crm` is a stateless Streamable HTTP MCP server for sales tools. It requires a CRM API key and current workspace membership on every request. Cookie authentication is not accepted. The allowlist exposes customer management operations through the existing tRPC procedures and middlewares. Read and write tools are separate. Permanent deletion, credentials and workspace administration are not exposed.
+
+Daily notes accept up to three validated raster images of 2 MiB each. Images persist in Neon with the note. Updates use the same version check and Shanghai midnight freeze for text and images. Organization type dictionary management is available to every workspace member.

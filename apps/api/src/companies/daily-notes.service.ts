@@ -1,4 +1,5 @@
 import type { Db } from "@crm/db";
+import { requestImage } from "@crm/validation/crm-request";
 import { type NoteMention, noteMentions } from "@crm/validation/daily-note";
 import {
 	BadRequestException,
@@ -7,6 +8,7 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import type { z } from "zod";
+import { z as schema } from "zod";
 import { InjectDatabase } from "../database/database.constants";
 import type {
 	dailyNoteCreateInput,
@@ -35,6 +37,7 @@ export class DailyNotesService {
 		return notes.map((note) => ({
 			id: note.id,
 			body: note.body,
+			images: schema.array(requestImage).parse(note.images),
 			mentions: noteMentions.parse(note.mentions),
 			createdAt: note.createdAt.toISOString(),
 			updatedAt: note.updatedAt.toISOString(),
@@ -77,6 +80,7 @@ export class DailyNotesService {
 					id,
 					companyId: input.companyId,
 					body: input.body,
+					images: input.images ?? [],
 					mentions: input.mentions,
 					updatedById: userId,
 				},
@@ -88,7 +92,7 @@ export class DailyNotesService {
 	async update(input: z.infer<typeof dailyNoteUpdateInput>, userId: string) {
 		await this.validateMentions(input.mentions);
 		const count = await this.db.$executeRaw`
-   UPDATE "organizationDailyNote" AS note SET "body"=${input.body}, "mentions"=${JSON.stringify(input.mentions)}::jsonb, "updatedById"=${userId}, "updatedAt"=clock_timestamp() AT TIME ZONE 'UTC', "version"="version"+1
+   UPDATE "organizationDailyNote" AS note SET "body"=${input.body}, "images"=COALESCE(${input.images === undefined ? null : JSON.stringify(input.images)}::jsonb, note."images"), "mentions"=${JSON.stringify(input.mentions)}::jsonb, "updatedById"=${userId}, "updatedAt"=clock_timestamp() AT TIME ZONE 'UTC', "version"="version"+1
    WHERE note."id"=${input.id} AND note."companyId"=${input.companyId} AND note."version"=${input.version}
    AND (note."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date = (clock_timestamp() AT TIME ZONE 'Asia/Shanghai')::date
    AND EXISTS (SELECT 1 FROM "company" WHERE "id"=note."companyId" AND "archivedAt" IS NULL)

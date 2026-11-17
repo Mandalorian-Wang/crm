@@ -56,18 +56,30 @@ export class CompaniesRouter {
 		@Inject(FollowUpService) private readonly followUps: FollowUpService,
 	) {}
 
-	@Query({ input: companyIdInput, output: dailyNotesOutput })
+	@Query({
+		input: companyIdInput,
+		output: dailyNotesOutput,
+		meta: restMeta("GET", "/companies/{id}/daily-notes", ["Daily notes"]),
+	})
 	dailyNotes(@Input("id") id: string) {
 		return this.notes.list(id);
 	}
-	@Mutation({ input: dailyNoteCreateInput, output: dailyNotesOutput })
+	@Mutation({
+		input: dailyNoteCreateInput,
+		output: dailyNotesOutput,
+		meta: restMeta("POST", "/daily-notes", ["Daily notes"]),
+	})
 	addDailyNote(
 		@Input() input: z.infer<typeof dailyNoteCreateInput>,
 		@Ctx() ctx: AuthedTrpcContext,
 	) {
 		return this.notes.create(input, ctx.user.id);
 	}
-	@Mutation({ input: dailyNoteUpdateInput, output: dailyNotesOutput })
+	@Mutation({
+		input: dailyNoteUpdateInput,
+		output: dailyNotesOutput,
+		meta: restMeta("PATCH", "/daily-notes/{id}", ["Daily notes"]),
+	})
 	updateDailyNote(
 		@Input() input: z.infer<typeof dailyNoteUpdateInput>,
 		@Ctx() ctx: AuthedTrpcContext,

@@ -14,6 +14,7 @@ import {
 import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { restMeta } from "../trpc/openapi";
 import { DictionariesService } from "./dictionaries.service";
 
 @Router({ alias: "dictionaries" })
@@ -23,11 +24,20 @@ export class DictionariesRouter {
 		@Inject(DictionariesService)
 		private readonly dictionaries: DictionariesService,
 	) {}
-	@Query({ output: organizationTypesOutput })
+	@Query({
+		output: organizationTypesOutput,
+		meta: restMeta("GET", "/dictionaries/organization-types", ["Dictionaries"]),
+	})
 	async organizationTypes(@Ctx() ctx: AuthedTrpcContext) {
 		return this.dictionaries.organizationTypes(ctx.user.id);
 	}
-	@Mutation({ input: organizationTypeInput, output: organizationTypesOutput })
+	@Mutation({
+		input: organizationTypeInput,
+		output: organizationTypesOutput,
+		meta: restMeta("POST", "/dictionaries/organization-types", [
+			"Dictionaries",
+		]),
+	})
 	async saveOrganizationType(
 		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof organizationTypeInput>,

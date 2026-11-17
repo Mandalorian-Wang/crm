@@ -1,7 +1,6 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
-import Partnership from "@carbon/icons-react/es/Partnership";
 import Star from "@carbon/icons-react/es/Star";
 import StarFilled from "@carbon/icons-react/es/StarFilled";
 import UserMultiple from "@carbon/icons-react/es/UserMultiple";
@@ -32,7 +31,6 @@ import {
 import { OrganizationTypeTag } from "@/components/crm/organization-type-tag";
 import { OwnerCell } from "@/components/crm/owner-cell";
 import { CompanySocials } from "@/components/crm/social-links";
-import { DealStageMenu } from "@/components/crm/stage-change";
 import { WebsiteActivity } from "@/components/crm/website-activity";
 import {
 	DetailSheetBody,
@@ -58,12 +56,11 @@ import {
 	membershipMessage,
 } from "./company-cloud-info";
 import { CompanyDailyNotes } from "./company-daily-notes";
-import { CompanyFollowUp } from "./company-follow-up";
 import { CompanyLinear } from "./company-linear";
-import { QuickAddContact, QuickAddDeal } from "./quick-add";
+import { QuickAddContact } from "./quick-add";
 import { RecordActions } from "./record-actions";
 import { RecordLink } from "./record-link";
-import { AddRow, DealAmount, RecordSheetFrame } from "./record-parts";
+import { AddRow, RecordSheetFrame } from "./record-parts";
 import { useOpenRecord, useRecordSheetView } from "./record-stack";
 
 type Company = RouterOutputs["companies"]["byId"];
@@ -109,19 +106,6 @@ const CONTACT_COLUMNS = [
 	{ id: "title", header: "Title", width: "w-[24%]" },
 	{ id: "email", header: "Email", width: "w-[26%]" },
 	{ id: "owner", header: "Owner", width: "w-[22%]" },
-];
-
-const DEAL_COLUMNS = [
-	{ id: "deal", header: "Deal", width: "w-[32%]", className: "pl-5" },
-	{ id: "stage", header: "Stage", width: "w-[24%]" },
-	{
-		id: "amount",
-		header: "Amount",
-		width: "w-[16%]",
-		align: "right" as const,
-	},
-	{ id: "close-date", header: "Close date", width: "w-[14%]" },
-	{ id: "owner", header: "Owner", width: "w-[14%]" },
 ];
 
 export function CompanySheet({ companyId }: { companyId: string }) {
@@ -173,16 +157,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					),
 				},
 				{
-					value: "follow-up",
-					label: "Follow-up",
-					content: (
-						<CompanyFollowUp
-							companyId={company.id}
-							contacts={company.contacts}
-						/>
-					),
-				},
-				{
 					value: "linear",
 					label: "Linear issue",
 					content: (
@@ -190,19 +164,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							key={company.id}
 							companyId={company.id}
 							companyName={company.name}
-						/>
-					),
-				},
-				{
-					value: "deals",
-					label: "Deals",
-					count: company.deals.length,
-					content: (
-						<CompanyDeals
-							company={company}
-							adding={adding === "deal"}
-							onAdd={() => setAdding("deal")}
-							onDone={() => setAdding(null)}
 						/>
 					),
 				},
@@ -569,94 +530,6 @@ function CompanyContacts({
 				<AddRow
 					label="Add inbound user"
 					columns={CONTACT_COLUMNS.length}
-					onClick={onAdd}
-				/>
-			</SimpleTable>
-		</>
-	);
-}
-
-function CompanyDeals({
-	company,
-	adding,
-	onAdd,
-	onDone,
-}: {
-	company: Company;
-	adding: boolean;
-	onAdd: () => void;
-	onDone: () => void;
-}) {
-	const openRecord = useOpenRecord();
-
-	const form = adding ? (
-		<QuickAddDeal
-			companyId={company.id}
-			companyName={company.name}
-			ownerId={company.owner?.id ?? null}
-			onDone={onDone}
-		/>
-	) : null;
-
-	if (company.deals.length === 0) {
-		return (
-			<>
-				{form}
-				{adding ? null : (
-					<DetailSheetEmpty
-						icon={Partnership}
-						title="No deals yet"
-						description={`Nothing is being sold to ${company.name} right now. Open one and it joins the pipeline and the forecast.`}
-						action={
-							<Button variant="outline" size="sm" onClick={onAdd}>
-								<Icon icon={Add} data-icon="inline-start" />
-								New deal
-							</Button>
-						}
-					/>
-				)}
-			</>
-		);
-	}
-
-	return (
-		<>
-			{form}
-			<SimpleTable variant="panel" columns={DEAL_COLUMNS}>
-				{company.deals.map((deal) => (
-					<SimpleTableRow
-						key={deal.id}
-						clickable
-						onClick={() => openRecord({ kind: "deal", id: deal.id })}
-					>
-						<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
-							{deal.name}
-						</TableCell>
-						<TableCell className="px-3 py-2.5">
-							<DealStageMenu dealId={deal.id} stage={deal.stage} />
-						</TableCell>
-						<TableCell className="px-3 py-2.5 text-right">
-							<DealAmount
-								amountCents={deal.amountCents}
-								currency={deal.currency}
-							/>
-						</TableCell>
-						<TableCell className="px-3 py-2.5 text-muted-foreground">
-							{deal.expectedCloseDate ? (
-								<LocalDay date={deal.expectedCloseDate} />
-							) : (
-								<EmptyCellValue />
-							)}
-						</TableCell>
-						<TableCell className="px-3 py-2.5">
-							<OwnerCell owner={deal.owner} />
-						</TableCell>
-					</SimpleTableRow>
-				))}
-
-				<AddRow
-					label="New deal"
-					columns={DEAL_COLUMNS.length}
 					onClick={onAdd}
 				/>
 			</SimpleTable>

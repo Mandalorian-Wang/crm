@@ -2,6 +2,13 @@
 
 import { Button } from "@crm/ui/components/button";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@crm/ui/components/dialog";
+import {
 	Field,
 	FieldDescription,
 	FieldGroup,
@@ -24,6 +31,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@crm/ui/components/table";
+import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -46,12 +54,16 @@ export function CompanyLinear({
 	companyName: string;
 }) {
 	const trpc = useTRPC();
+	const [managing, setManaging] = useState(false);
+	const [mode, setMode] = useState("search");
+	const [linkingIssue, setLinkingIssue] = useState(false);
 	const cache = useCrmCache();
 	const createNameId = useId();
 	const [newName, setNewName] = useState(companyName);
 	const createCustomer = useMutation(
 		trpc.linear.createCustomer.mutationOptions({
 			onSuccess: async () => {
+				setManaging(false);
 				await cache.linear(companyId);
 				toast.success("Customer created and linked.");
 			},
@@ -72,6 +84,8 @@ export function CompanyLinear({
 		trpc.linear.linkIssue.mutationOptions({
 			onSuccess: async () => {
 				setIssueReference("");
+				setLinkingIssue(false);
+				setManaging(false);
 				await cache.linear(companyId);
 				toast.success("Issue linked to the customer.");
 			},
@@ -80,7 +94,7 @@ export function CompanyLinear({
 	const binding = useQuery(trpc.linear.binding.queryOptions({ companyId }));
 	const customers = useQuery({
 		...trpc.linear.customers.queryOptions({ q, cursor }),
-		enabled: binding.data?.configured === true,
+		enabled: binding.data?.configured === true && managing && mode === "search",
 	});
 	const issues = useQuery({
 		...trpc.linear.issues.queryOptions({ companyId }),
@@ -92,6 +106,7 @@ export function CompanyLinear({
 			onSuccess: async () => {
 				setReference("");
 				setSelected("");
+				setManaging(false);
 				await cache.linear(companyId);
 			},
 			onError: (error) => toast.error(error.message),
@@ -132,8 +147,7 @@ export function CompanyLinear({
 						</div>
 					) : (
 						<DetailSheetProse>
-							No Linear customer linked. Find an existing customer or create one
-							below.
+							Connect a customer to view and manage their Linear issues.
 						</DetailSheetProse>
 					)}
 					{binding.data && !binding.data.configured ? (
@@ -142,191 +156,237 @@ export function CompanyLinear({
 							server configuration.
 						</DetailSheetProse>
 					) : null}
-					{binding.data?.configured && !customer ? (
-						<FieldGroup>
-							<Field>
-								<FieldLabel htmlFor={createNameId}>
-									Create a new Linear customer
-								</FieldLabel>
-								<form
-									className="flex flex-wrap gap-2"
-									onSubmit={(event) => {
-										event.preventDefault();
-										createCustomer.mutate({ companyId, name: newName.trim() });
-									}}
-								>
-									<Input
-										id={createNameId}
-										aria-label="New Linear customer name"
-										value={newName}
-										onChange={(event) => setNewName(event.target.value)}
-										maxLength={200}
-										disabled={createCustomer.isPending}
-									/>
-									<Button
-										type="submit"
-										disabled={
-											!newName.trim() ||
-											createCustomer.isPending ||
-											bind.isPending
-										}
-									>
-										{createCustomer.isPending
-											? "Creating…"
-											: "Create customer and link"}
-									</Button>
-								</form>
-								{createCustomer.error ? (
-									<p role="alert">{createCustomer.error.message}</p>
-								) : null}
-							</Field>
-						</FieldGroup>
-					) : null}
-
 					{binding.data?.configured ? (
-						<details open={!customer}>
-							<summary>Manage connection</summary>
-							{customer ? (
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={bind.isPending || createCustomer.isPending}
-									onClick={() => bind.mutate({ companyId, reference: null })}
-								>
-									Unlink customer
-								</Button>
-							) : null}
-							<FieldGroup>
-								<Field>
-									<FieldLabel htmlFor={searchId}>
-										Find a Linear customer
-									</FieldLabel>
-									<form
-										className="flex gap-2"
-										onSubmit={(event) => {
-											event.preventDefault();
-											setQuery(search.trim());
-											setCursor(null);
-											setSelected("");
-										}}
-									>
-										<Input
-											id={searchId}
-											placeholder="Search customers by name"
-											value={search}
-											onChange={(event) => setSearch(event.target.value)}
-										/>
-										<Button type="submit" variant="outline">
-											Search
-										</Button>
-									</form>
-									{customers.error ? (
-										<FieldDescription>
-											{customers.error.message}
-										</FieldDescription>
-									) : null}
-									<div className="flex flex-wrap items-center gap-2">
-										<Select
-											value={selected}
-											onValueChange={setSelected}
-											disabled={customers.isFetching || bind.isPending}
-										>
-											<SelectTrigger aria-label="Linear customer">
-												<SelectValue
-													placeholder={
-														customers.isFetching
-															? "Loading customers…"
-															: "Select a customer"
-													}
-												/>
-											</SelectTrigger>
-											<SelectContent>
-												<SelectGroup>
-													{customers.data?.nodes.map((entry) => (
-														<SelectItem key={entry.id} value={entry.id}>
-															{entry.name}
-														</SelectItem>
-													))}
-												</SelectGroup>
-											</SelectContent>
-										</Select>
-										<Button
-											disabled={
-												!selected || bind.isPending || createCustomer.isPending
-											}
-											onClick={() =>
-												bind.mutate({ companyId, reference: selected })
-											}
-										>
-											Link selected customer
-										</Button>
-										{cursor ? (
-											<Button
-												variant="ghost"
-												onClick={() => {
-													setCursor(null);
-													setSelected("");
-												}}
-											>
-												First page
-											</Button>
-										) : null}
-										{customers.data?.pageInfo.hasNextPage ? (
-											<Button
-												variant="ghost"
-												disabled={customers.isFetching}
-												onClick={() => {
-													setCursor(customers.data?.pageInfo.endCursor ?? null);
-													setSelected("");
-												}}
-											>
-												More customers
-											</Button>
-										) : null}
-									</div>
-									{customers.data?.nodes.length === 0 ? (
-										<FieldDescription>
-											No customers match this search.
-										</FieldDescription>
-									) : null}
-								</Field>
-								<Field>
-									<FieldLabel htmlFor={referenceId}>
-										Or enter a customer URL or ID
-									</FieldLabel>
-									<form
-										className="flex gap-2"
-										onSubmit={(event) => {
-											event.preventDefault();
-											bind.mutate({ companyId, reference: reference.trim() });
-										}}
-									>
-										<Input
-											id={referenceId}
-											placeholder="https://linear.app/polygala/customer/…"
-											value={reference}
-											onChange={(event) => setReference(event.target.value)}
-										/>
-										<Button
-											type="submit"
-											variant="outline"
-											disabled={
-												!reference.trim() ||
-												bind.isPending ||
-												createCustomer.isPending
-											}
-										>
-											Link customer
-										</Button>
-									</form>
-									<FieldDescription>
-										Each organization links to one customer. Selecting another
-										customer replaces this link.
-									</FieldDescription>
-								</Field>
-							</FieldGroup>
-						</details>
+						<Button
+							variant={customer ? "outline" : "default"}
+							onClick={() => setManaging(true)}
+						>
+							{customer ? "Change customer" : "Connect customer"}
+						</Button>
 					) : null}
+					<Dialog open={managing} onOpenChange={setManaging}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>
+									{customer
+										? "Change Linear customer"
+										: "Connect Linear customer"}
+								</DialogTitle>
+								<DialogDescription>
+									Choose a customer to see their issues in this organization.
+								</DialogDescription>
+							</DialogHeader>
+							<Tabs value={mode} onValueChange={setMode}>
+								<TabsList>
+									<TabsTrigger value="search">Find existing</TabsTrigger>
+									<TabsTrigger value="create">Create new</TabsTrigger>
+									<TabsTrigger value="url">Paste link</TabsTrigger>
+								</TabsList>
+							</Tabs>
+							{mode === "create" ? (
+								<FieldGroup>
+									<Field>
+										<FieldLabel htmlFor={createNameId}>
+											Create a new Linear customer
+										</FieldLabel>
+										<form
+											className="flex flex-wrap gap-2"
+											onSubmit={(event) => {
+												event.preventDefault();
+												createCustomer.mutate({
+													companyId,
+													name: newName.trim(),
+												});
+											}}
+										>
+											<Input
+												id={createNameId}
+												aria-label="New Linear customer name"
+												value={newName}
+												onChange={(event) => setNewName(event.target.value)}
+												maxLength={200}
+												disabled={createCustomer.isPending}
+											/>
+											<Button
+												type="submit"
+												disabled={
+													!newName.trim() ||
+													createCustomer.isPending ||
+													bind.isPending
+												}
+											>
+												{createCustomer.isPending
+													? "Creating…"
+													: "Create customer and link"}
+											</Button>
+										</form>
+										{createCustomer.error ? (
+											<p role="alert">{createCustomer.error.message}</p>
+										) : null}
+									</Field>
+								</FieldGroup>
+							) : null}
+
+							{mode !== "create" ? (
+								<div className="space-y-4">
+									{customer ? (
+										<Button
+											variant="outline"
+											size="sm"
+											disabled={bind.isPending || createCustomer.isPending}
+											onClick={() =>
+												bind.mutate({ companyId, reference: null })
+											}
+										>
+											Unlink customer
+										</Button>
+									) : null}
+									<FieldGroup>
+										{mode === "search" ? (
+											<Field>
+												<FieldLabel htmlFor={searchId}>
+													Find a Linear customer
+												</FieldLabel>
+												<form
+													className="flex gap-2"
+													onSubmit={(event) => {
+														event.preventDefault();
+														setQuery(search.trim());
+														setCursor(null);
+														setSelected("");
+													}}
+												>
+													<Input
+														id={searchId}
+														placeholder="Search customers by name"
+														value={search}
+														onChange={(event) => setSearch(event.target.value)}
+													/>
+													<Button type="submit" variant="outline">
+														Search
+													</Button>
+												</form>
+												{customers.error ? (
+													<FieldDescription>
+														{customers.error.message}
+													</FieldDescription>
+												) : null}
+												<div className="flex flex-wrap items-center gap-2">
+													<Select
+														value={selected}
+														onValueChange={setSelected}
+														disabled={customers.isFetching || bind.isPending}
+													>
+														<SelectTrigger aria-label="Linear customer">
+															<SelectValue
+																placeholder={
+																	customers.isFetching
+																		? "Loading customers…"
+																		: "Select a customer"
+																}
+															/>
+														</SelectTrigger>
+														<SelectContent>
+															<SelectGroup>
+																{customers.data?.nodes.map((entry) => (
+																	<SelectItem key={entry.id} value={entry.id}>
+																		{entry.name}
+																	</SelectItem>
+																))}
+															</SelectGroup>
+														</SelectContent>
+													</Select>
+													<Button
+														disabled={
+															!selected ||
+															bind.isPending ||
+															createCustomer.isPending
+														}
+														onClick={() =>
+															bind.mutate({ companyId, reference: selected })
+														}
+													>
+														Link selected customer
+													</Button>
+													{cursor ? (
+														<Button
+															variant="ghost"
+															onClick={() => {
+																setCursor(null);
+																setSelected("");
+															}}
+														>
+															First page
+														</Button>
+													) : null}
+													{customers.data?.pageInfo.hasNextPage ? (
+														<Button
+															variant="ghost"
+															disabled={customers.isFetching}
+															onClick={() => {
+																setCursor(
+																	customers.data?.pageInfo.endCursor ?? null,
+																);
+																setSelected("");
+															}}
+														>
+															More customers
+														</Button>
+													) : null}
+												</div>
+												{customers.data?.nodes.length === 0 ? (
+													<FieldDescription>
+														No customers match this search.
+													</FieldDescription>
+												) : null}
+											</Field>
+										) : null}
+										{mode === "url" ? (
+											<Field>
+												<FieldLabel htmlFor={referenceId}>
+													Or enter a customer URL or ID
+												</FieldLabel>
+												<form
+													className="flex gap-2"
+													onSubmit={(event) => {
+														event.preventDefault();
+														bind.mutate({
+															companyId,
+															reference: reference.trim(),
+														});
+													}}
+												>
+													<Input
+														id={referenceId}
+														placeholder="https://linear.app/polygala/customer/…"
+														value={reference}
+														onChange={(event) =>
+															setReference(event.target.value)
+														}
+													/>
+													<Button
+														type="submit"
+														variant="outline"
+														disabled={
+															!reference.trim() ||
+															bind.isPending ||
+															createCustomer.isPending
+														}
+													>
+														Link customer
+													</Button>
+												</form>
+												<FieldDescription>
+													Each organization links to one customer. Selecting
+													another customer replaces this link.
+												</FieldDescription>
+											</Field>
+										) : null}
+									</FieldGroup>
+								</div>
+							) : null}
+						</DialogContent>
+					</Dialog>
 				</DetailSheetSection>
 				{customer ? (
 					<DetailSheetSection
@@ -344,6 +404,9 @@ export function CompanyLinear({
 					>
 						<div className="flex flex-wrap gap-2">
 							<SubmitRequest companyId={companyId} />
+							<Button variant="outline" onClick={() => setLinkingIssue(true)}>
+								Link issue
+							</Button>
 							{(["open", "all", "completed"] as const).map((filter) => (
 								<Button
 									key={filter}
@@ -359,40 +422,48 @@ export function CompanyLinear({
 								</Button>
 							))}
 						</div>
-						<form
-							className="flex flex-col gap-2 py-3"
-							onSubmit={(event) => {
-								event.preventDefault();
-								linkIssue.mutate({ companyId, reference: issueReference });
-							}}
-						>
-							<Field>
-								<FieldLabel htmlFor={`${referenceId}-issue`}>
-									Link an existing issue
-								</FieldLabel>
-								<Input
-									id={`${referenceId}-issue`}
-									placeholder="Linear issue URL or BUI-123"
-									value={issueReference}
-									onChange={(event) => setIssueReference(event.target.value)}
-									disabled={linkIssue.isPending}
-								/>
-							</Field>
-							{linkIssue.error ? (
-								<p role="alert">{linkIssue.error.message}</p>
-							) : null}
-							<Button
-								type="submit"
-								variant="outline"
-								disabled={linkIssue.isPending || !issueReference.trim()}
-							>
-								{linkIssue.isPending ? "Linking…" : "Link issue"}
-							</Button>
-						</form>
-						<DetailSheetProse>
-							Only issues visible to CRM’s Linear connection are listed. A link
-							in an issue description does not create a customer request.
-						</DetailSheetProse>
+						<Dialog open={linkingIssue} onOpenChange={setLinkingIssue}>
+							<DialogContent>
+								<DialogHeader>
+									<DialogTitle>Link an existing issue</DialogTitle>
+									<DialogDescription>
+										Paste an issue URL or identifier.
+									</DialogDescription>
+								</DialogHeader>
+								<form
+									className="flex flex-col gap-2 py-3"
+									onSubmit={(event) => {
+										event.preventDefault();
+										linkIssue.mutate({ companyId, reference: issueReference });
+									}}
+								>
+									<Field>
+										<FieldLabel htmlFor={`${referenceId}-issue`}>
+											Link an existing issue
+										</FieldLabel>
+										<Input
+											id={`${referenceId}-issue`}
+											placeholder="Linear issue URL or BUI-123"
+											value={issueReference}
+											onChange={(event) =>
+												setIssueReference(event.target.value)
+											}
+											disabled={linkIssue.isPending}
+										/>
+									</Field>
+									{linkIssue.error ? (
+										<p role="alert">{linkIssue.error.message}</p>
+									) : null}
+									<Button
+										type="submit"
+										variant="outline"
+										disabled={linkIssue.isPending || !issueReference.trim()}
+									>
+										{linkIssue.isPending ? "Linking…" : "Link issue"}
+									</Button>
+								</form>
+							</DialogContent>
+						</Dialog>
 						{issues.isFetching ? (
 							<DetailSheetProse>Loading issues from Linear…</DetailSheetProse>
 						) : null}
@@ -401,14 +472,12 @@ export function CompanyLinear({
 						) : null}
 						{issues.data ? (
 							<>
-								<DetailSheetProse>
-									{issues.data.issues.length} accessible issues linked to this
-									customer. Last fetched:{" "}
-									{new Date(issues.data.fetchedAt).toLocaleString("en-GB", {
-										timeZone: "Asia/Shanghai",
-									})}{" "}
-									(Shanghai).
-								</DetailSheetProse>
+								<span
+									className="text-xs text-muted-foreground"
+									title={`Updated ${new Date(issues.data.fetchedAt).toLocaleString()}`}
+								>
+									{visibleIssues.length} issues
+								</span>
 								{visibleIssues.length ? (
 									<Table>
 										<TableHeader>

@@ -9,6 +9,7 @@ import {
 } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import type { NextFunction, Request, Response } from "express";
+import { json } from "express";
 import helmet from "helmet";
 import { AppRouterHost } from "nestjs-trpc";
 import {
@@ -17,6 +18,7 @@ import {
 } from "trpc-to-openapi";
 import { AppModule } from "./app.module";
 import { ContextLogger } from "./logging/context-logger";
+import { handleCrmMcp } from "./mcp/crm-mcp";
 import { REST_BRIDGE_PATH } from "./trpc/openapi";
 import { createBaseTrpcContext } from "./trpc/trpc.context";
 
@@ -28,6 +30,14 @@ export async function createApp(): Promise<NestExpressApplication> {
 	);
 
 	app.use(helmet());
+	app.use("/api/trpc", json({ limit: "10mb" }));
+	app.use(
+		"/api/mcp/crm",
+		json({ limit: "10mb" }),
+		(req: Request, res: Response, next: NextFunction) => {
+			void handleCrmMcp(app.get(AppRouterHost).appRouter, req, res).catch(next);
+		},
+	);
 	app.useGlobalPipes(
 		new ValidationPipe({
 			whitelist: true,

@@ -170,7 +170,7 @@ export function DictionarySettings() {
 			</div>
 			{!canManage ? (
 				<p className="text-sm text-muted-foreground">
-					Only owners and admins can edit this dictionary.
+					Join the CRM team to edit this dictionary.
 				</p>
 			) : null}
 			{editing !== null ? (
