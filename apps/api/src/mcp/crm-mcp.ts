@@ -10,6 +10,12 @@ import type { AnyRouter } from "@trpc/server";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { createBaseTrpcContext } from "../trpc/trpc.context";
+import {
+	assertNoDiscardedKeys,
+	describeFields,
+	operationGuidance,
+	validateFieldFilters,
+} from "./crm-mcp-guidance";
 
 const operations = new Set([
 	"companies.list",
@@ -154,9 +160,31 @@ export async function handleCrmMcp(
 				if (!available.includes(operation))
 					throw new Error("This CRM operation is not available.");
 				const procedure = router._def.procedures[operation];
+				const entity = operation.startsWith("companies.")
+					? "COMPANY"
+					: operation.startsWith("contacts.")
+						? "CONTACT"
+						: null;
+				const fields =
+					entity &&
+					["crm_describe", "crm_read"].includes(request.params.name) &&
+					(operation.endsWith(".list") || operation.endsWith(".update"))
+						? describeFields(
+								await router._def.procedures["fields.list"]({
+									ctx,
+									path: "fields.list",
+									type: "query",
+									getRawInput: async () => ({ entity }),
+									signal: undefined,
+									batchIndex: 0,
+								}),
+							)
+						: undefined;
 				if (request.params.name === "crm_describe") {
 					result = {
 						operation,
+						guidance: operationGuidance(operation, user.id),
+						fields,
 						inputSchema: procedure._def.inputs.map((schema: z.ZodType) =>
 							z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }),
 						),
@@ -167,6 +195,11 @@ export async function handleCrmMcp(
 						throw new Error(
 							`Use ${readOnly ? "crm_read" : "crm_write"} for this operation.`,
 						);
+					for (const schema of procedure._def.inputs as z.ZodType[]) {
+						assertNoDiscardedKeys(input, schema.parse(input));
+					}
+					if (fields && operation.endsWith(".list"))
+						validateFieldFilters(input, fields);
 					result = await procedure({
 						ctx,
 						path: operation,
