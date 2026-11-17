@@ -9,15 +9,19 @@ import { type Owner, OwnerCell } from "@/components/crm/owner-cell";
 import { useTRPC } from "@/lib/trpc/client";
 import type { FieldEntity } from "./fields-entity";
 
-type WithFields = { fields: Record<string, string | number | boolean | null> };
+type WithFields = {
+	fields: Record<string, string | string[] | number | boolean | null>;
+};
 
 function render(
 	type: string,
-	value: string | number | boolean | null,
+	value: string | string[] | number | boolean | null,
 	users: Map<string, Owner>,
 ) {
-	if (value === null || value === "") return <EmptyCellValue />;
+	if (value === null || value === "" || (Array.isArray(value) && !value.length))
+		return <EmptyCellValue />;
 
+	if (Array.isArray(value)) return value.join(", ");
 	if (type === "CHECKBOX") return value === true ? "Yes" : "No";
 	if (type === "DATE") return formatDay(String(value));
 	if (type === "USER") {

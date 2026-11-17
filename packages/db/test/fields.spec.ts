@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
 	attachValues,
+	serializeFieldFor,
+	writeValues,
+	type FieldWriter,
 	coerceValue,
 	columnFor,
 	type FieldDefinitionWithOptions,
@@ -47,6 +50,7 @@ function value(over: Partial<FieldValueModel> = {}): FieldValueModel {
 		date: null,
 		bool: null,
 		optionId: null,
+		optionIds: [],
 		userId: null,
 		updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 		...over,
@@ -228,5 +232,39 @@ describe("attachValues", () => {
 		expect(fields.map((field) => field.key)).toEqual(["runs_on", "seats"]);
 		expect(fields[0]?.value).toBe("AWS");
 		expect(fields[1]?.value).toBeNull();
+	});
+});
+
+const multi = definition({ type: "MULTI_SELECT", options: [
+	{ id: "a", fieldId: "def-1", label: "A", color: "blue", position: 0, archivedAt: null },
+	{ id: "b", fieldId: "def-1", label: "B", color: "gray", position: 1, archivedAt: null },
+	{ id: "old", fieldId: "def-1", label: "Old", color: "gray", position: 2, archivedAt: new Date() },
+] });
+describe("multi-select dictionary values", () => {
+	it("stores distinct option IDs and clears explicitly", () => {
+		expect(coerceValue(multi, ["a", "b", "a"])).toEqual({ optionIds: ["a", "b"] });
+		expect(coerceValue(multi, [])).toEqual({ optionIds: null });
+		expect(coerceValue(multi, null)).toEqual({ optionIds: null });
+		for (const input of ["a", ["unknown"], ["A"], ["old"], [42]]) expect(() => coerceValue(multi, input)).toThrow(FieldValueError);
+		expect(() => coerceValue({ ...multi, required: true }, [])).toThrow(FieldValueError);
+		expect(() => coerceValue({ ...multi, type: "SELECT" }, ["a"])).toThrow(FieldValueError);
+	});
+	it("reads arrays and retains inactive selections in record metadata", () => {
+		expect(readValue(multi, value({ optionIds: ["a", "b"] }))).toEqual(["a", "b"]);
+		const field = serializeFieldFor(multi, ["a", "old"]);
+		expect(field.options.find((option) => option.id === "old")).toMatchObject({ archived: true, label: "Old · inactive" });
+		expect(serializeField(multi).options.some((option) => option.id === "old")).toBe(false);
+	});
+	it("preserves existing inactive choices when another choice is added", async () => {
+		const writes: object[] = [];
+		const tx: FieldWriter = { fieldValue: {
+			findFirst: async () => ({ optionIds: ["old"] }),
+			deleteMany: async () => undefined,
+			upsert: async (args) => { writes.push(args.update); },
+		}, user: { findMany: async () => [] } };
+		await writeValues(tx, "COMPANY", "org", [multi], { runs_on: ["old", "a"] });
+		expect(writes).toEqual([{ optionIds: ["old", "a"] }]);
+		tx.fieldValue.findFirst = async () => ({ optionIds: [] });
+		await expect(writeValues(tx, "COMPANY", "org", [multi], { runs_on: ["old"] })).rejects.toThrow(FieldValueError);
 	});
 });

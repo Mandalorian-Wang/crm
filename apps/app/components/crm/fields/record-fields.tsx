@@ -27,7 +27,9 @@ import { LocalDay } from "@/components/local-date-time";
 import { billingTimestamp, billingWindow } from "@/lib/billing-display";
 import { useTRPC } from "@/lib/trpc/client";
 
-type RecordFieldOption = { id: string; label: string };
+import { MultiSelectField } from "./multi-select-field";
+
+type RecordFieldOption = { id: string; label: string; archived?: boolean };
 
 export type RecordFieldEntry = {
 	id: string;
@@ -175,6 +177,31 @@ export function RecordFields({
 						);
 					}
 
+					if (field.type === "MULTI_SELECT") {
+						const values = Array.isArray(field.value) ? field.value : [];
+						return (
+							<DetailSheetProperty key={field.id} label={field.label} wide>
+								<div className="space-y-1">
+									<p className="text-sm">
+										{values
+											.map(
+												(id) =>
+													field.options.find((option) => option.id === id)
+														?.label ?? id,
+											)
+											.join(", ") || "—"}
+									</p>
+									<MultiSelectField
+										label={field.label}
+										value={values}
+										options={field.options}
+										saving={busy}
+										onSave={save}
+									/>
+								</div>
+							</DetailSheetProperty>
+						);
+					}
 					if (field.type === "SELECT") {
 						return (
 							<InlineSelectField

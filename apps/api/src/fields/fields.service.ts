@@ -19,7 +19,7 @@ import {
 	usesOptions,
 	writeValues,
 } from "@crm/db/fields";
-import { ORGANIZATION_TYPE_KEY } from "@crm/validation/organization-type";
+import { ORGANIZATION_DICTIONARIES } from "@crm/validation/organization-type";
 import {
 	BadRequestException,
 	ConflictException,
@@ -83,7 +83,10 @@ export class FieldsService {
 			throw new BadRequestException("That label does not make a usable key.");
 		}
 
-		if (key === ORGANIZATION_TYPE_KEY || isSourceManagedField(key))
+		if (
+			ORGANIZATION_DICTIONARIES.some((dictionary) => dictionary.key === key) ||
+			isSourceManagedField(key)
+		)
 			throw new BadRequestException(
 				"This field key is reserved for a data source.",
 			);
@@ -156,9 +159,13 @@ export class FieldsService {
 		});
 
 		if (!existing) throw new NotFoundException("That field does not exist.");
-		if (existing.key === ORGANIZATION_TYPE_KEY)
+		if (
+			ORGANIZATION_DICTIONARIES.some(
+				(dictionary) => dictionary.key === existing.key,
+			)
+		)
 			throw new BadRequestException(
-				"Manage organization types in Settings → Dictionaries.",
+				"Manage organization dictionary fields in Settings → Dictionaries.",
 			);
 
 		if (
@@ -303,7 +310,9 @@ export class FieldsService {
 		});
 		if (
 			definition &&
-			(definition.key === ORGANIZATION_TYPE_KEY ||
+			(ORGANIZATION_DICTIONARIES.some(
+				(dictionary) => dictionary.key === definition.key,
+			) ||
 				isSourceManagedField(definition.key))
 		)
 			throw new BadRequestException(
@@ -342,7 +351,9 @@ export class FieldsService {
 		});
 		if (
 			definition &&
-			(definition.key === ORGANIZATION_TYPE_KEY ||
+			(ORGANIZATION_DICTIONARIES.some(
+				(dictionary) => dictionary.key === definition.key,
+			) ||
 				isSourceManagedField(definition.key))
 		)
 			throw new BadRequestException("Source-managed fields cannot be deleted.");
@@ -529,7 +540,7 @@ export class FieldsService {
 
 			const current = byRecord.get(recordId) ?? {};
 			current[definition.key] =
-				definition.key === ORGANIZATION_TYPE_KEY
+				definition.key === "organization_type"
 					? readValue(definition, row)
 					: tableValue(definition, readValue(definition, row));
 			byRecord.set(recordId, current);
@@ -551,7 +562,7 @@ export class FieldsService {
 				entity,
 				archivedAt: null,
 				showOnFilter: true,
-				type: { in: ["SELECT", "USER", "NUMBER", "DATE"] },
+				type: { in: ["SELECT", "MULTI_SELECT", "USER", "NUMBER", "DATE"] },
 			},
 			include: WITH_OPTIONS,
 			orderBy: { position: "asc" },
@@ -586,7 +597,19 @@ export class FieldsService {
 			.filter((definition) => definition.type === "USER")
 			.map((definition) => definition.id);
 
-		const [selectGroups, userGroups] = await Promise.all([
+		const multiIds = definitions
+			.filter((definition) => definition.type === "MULTI_SELECT")
+			.map((definition) => definition.id);
+		const [multiRows, selectGroups, userGroups] = await Promise.all([
+			multiIds.length
+				? this.db.fieldValue.findMany({
+						where: {
+							fieldId: { in: multiIds },
+							[relation]: relationWhere,
+						} as Prisma.FieldValueWhereInput,
+						select: { fieldId: true, optionIds: true },
+					})
+				: [],
 			selectIds.length > 0
 				? this.db.fieldValue.groupBy({
 						by: ["fieldId", "optionId"],
@@ -611,6 +634,14 @@ export class FieldsService {
 				: [],
 		]);
 
+		for (const row of multiRows) {
+			const definition = byId.get(row.fieldId);
+			if (!definition) continue;
+			const bucket = facetCounts[definition.key] ?? {};
+			facetCounts[definition.key] = bucket;
+			for (const id of new Set(row.optionIds))
+				bucket[id] = (bucket[id] ?? 0) + 1;
+		}
 		for (const group of selectGroups) {
 			const definition = byId.get(group.fieldId);
 			if (!definition || !group.optionId) continue;
@@ -666,9 +697,11 @@ export class FieldsService {
 						{
 							fieldValues: {
 								some:
-									definition.type === "USER"
-										? { fieldId: definition.id, userId: { in: values } }
-										: { fieldId: definition.id, optionId: { in: values } },
+									definition.type === "MULTI_SELECT"
+										? { fieldId: definition.id, optionIds: { hasSome: values } }
+										: definition.type === "USER"
+											? { fieldId: definition.id, userId: { in: values } }
+											: { fieldId: definition.id, optionId: { in: values } },
 							},
 						},
 					];
@@ -727,6 +760,11 @@ function tableValue(
 	definition: FieldDefinitionWithOptions,
 	value: FieldValueJson,
 ): FieldValueJson {
+	if (definition.type === "MULTI_SELECT" && Array.isArray(value))
+		return value.map(
+			(id) =>
+				definition.options.find((option) => option.id === id)?.label ?? id,
+		);
 	if (definition.type !== "SELECT" || typeof value !== "string") return value;
 
 	return (

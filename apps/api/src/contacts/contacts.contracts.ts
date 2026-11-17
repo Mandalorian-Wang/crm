@@ -88,12 +88,14 @@ export type FactDecisionInput = z.infer<typeof factDecisionInput>;
 
 const fieldValueOutput = z.union([
 	z.string(),
+	z.array(z.string()),
 	z.number(),
 	z.boolean(),
 	z.null(),
 ]);
 
 const fieldOptionOutput = z.object({
+	archived: z.boolean().default(false),
 	id: z.string(),
 	label: z.string(),
 	position: z.number(),

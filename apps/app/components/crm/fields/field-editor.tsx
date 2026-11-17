@@ -95,6 +95,7 @@ const TYPE_HINTS = {
 	DATE: "Date",
 	CHECKBOX: "Checkbox — yes or no",
 	SELECT: "Select — one of a fixed list",
+	MULTI_SELECT: "Multi-select — several options",
 	URL: "URL",
 	EMAIL: "Email",
 	PHONE: "Phone",
@@ -225,7 +226,13 @@ export function FieldEditor({
 	const key = field?.key ?? fieldKeyFromLabel(draft.label);
 	const managed = isSourceManagedField(key);
 	const saving = create.isPending || update.isPending;
-	const filterable = ["SELECT", "USER", "NUMBER", "DATE"].includes(draft.type);
+	const filterable = [
+		"SELECT",
+		"MULTI_SELECT",
+		"USER",
+		"NUMBER",
+		"DATE",
+	].includes(draft.type);
 
 	const save = () => {
 		const payload = {
@@ -329,7 +336,7 @@ export function FieldEditor({
 						</Select>
 					</Field>
 
-					{draft.type === "SELECT" ? (
+					{draft.type === "SELECT" || draft.type === "MULTI_SELECT" ? (
 						<Field aria-labelledby={optionsId}>
 							<FieldTitle id={optionsId}>{OPTIONS_LABEL}</FieldTitle>
 							<SortableList

@@ -1149,6 +1149,7 @@ enum FieldType {
   DATE
   CHECKBOX
   SELECT
+  MULTI_SELECT
   URL
   EMAIL
   PHONE
@@ -1215,6 +1216,7 @@ model FieldValue {
   number   Decimal?     @db.Decimal(24, 4)
   date     DateTime?
   bool     Boolean?
+  optionIds String[] @default([])
   optionId String?
   option   FieldOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
   userId   String?
@@ -1225,6 +1227,7 @@ model FieldValue {
   @@unique([fieldId, companyId])
   @@unique([fieldId, contactId])
   @@unique([fieldId, dealId])
+  @@index([optionIds], type: Gin)
   @@index([fieldId, text])
   @@index([fieldId, number])
   @@index([fieldId, date])

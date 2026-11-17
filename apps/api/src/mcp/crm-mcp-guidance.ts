@@ -36,7 +36,7 @@ export function describeFields(value: unknown) {
 		readOnly: isSourceManagedField(field.key),
 		filterable:
 			field.showOnFilter &&
-			["SELECT", "USER", "NUMBER", "DATE"].includes(field.type),
+			["SELECT", "MULTI_SELECT", "USER", "NUMBER", "DATE"].includes(field.type),
 		options: field.options,
 	}));
 }
@@ -64,7 +64,7 @@ export function validateFieldFilters(
 				`Field ${key} is not filterable. Call crm_describe for available fields.`,
 			);
 		if (
-			field.type === "SELECT" &&
+			(field.type === "SELECT" || field.type === "MULTI_SELECT") &&
 			values.some(
 				(value) => !field.options.some((option) => option.id === value),
 			)
@@ -74,6 +74,13 @@ export function validateFieldFilters(
 }
 
 export function operationGuidance(operation: string, currentUserId: string) {
+	if (operation.startsWith("dictionaries."))
+		return {
+			dictionaries:
+				"Use key: organization_type, growth_channel, customer_region, or competitors. Default is organization_type for compatibility. Read the matching dictionary before writing. Pass id to rename/deactivate an existing option; omit id to add an option. Never infer customer values from dictionary defaults.",
+			values:
+				"growth_channel and customer_region store one option ID. competitors stores an array of option IDs for products being tested or used. Customer region means actual customer location, not deployment region. Empty means unknown or unrecorded, not confirmed absence of competitors.",
+		};
 	if (operation === "companies.customerContext")
 		return {
 			purpose:
@@ -128,7 +135,7 @@ export function operationGuidance(operation: string, currentUserId: string) {
 			pagination:
 				"page is 1-based, pageSize is at most 100. Continue until all total records are covered.",
 			filters:
-				"Different fields combine with AND. SELECT/USER values within a field combine with OR. Use field keys without a field: prefix in fields. Unknown or non-filterable fields are rejected.",
+				"Different fields combine with AND. SELECT/MULTI_SELECT/USER values within a field combine with OR. Use field keys without a field: prefix in fields. Unknown or non-filterable fields are rejected.",
 			ranges:
 				"NUMBER uses min:4 and max:10 (inclusive). More than 3 integer boxes means min:4. DATE uses min:YYYY-MM-DD and max:YYYY-MM-DD, inclusive Shanghai calendar days. Missing values are not zero.",
 			myCustomers: { owner: [currentUserId] },
@@ -155,7 +162,7 @@ export function operationGuidance(operation: string, currentUserId: string) {
 					? "data.fields.registration_source accepts custom text or null. Manual edits, including clearing, survive later imports. Cloud/GitHub origin tabs still reflect synced identity fields, not this editable label."
 					: undefined,
 			partialUpdate:
-				"Only send changed properties. Custom values are data.fields keyed by field key. SELECT values use existing option IDs. null clears a custom field.",
+				"Only send changed properties. Custom values are data.fields keyed by field key. SELECT values use existing option IDs. MULTI_SELECT values are arrays of existing option IDs; read the current value and preserve entries when adding or removing one. [] or null clears a multi-select. null clears a custom field.",
 			owner:
 				"Resolve owner IDs with users.list. Updating an organization owner also updates its linked inbound users.",
 		};

@@ -12,7 +12,18 @@ import {
 	SelectValue,
 } from "@crm/ui/components/select";
 import { Spinner } from "@crm/ui/components/spinner";
-import { TAG_COLORS, type tagColor } from "@crm/validation/organization-type";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@crm/ui/components/tabs";
+import {
+	ORGANIZATION_DICTIONARIES,
+	type OrganizationDictionaryKey,
+	TAG_COLORS,
+	type tagColor,
+} from "@crm/validation/organization-type";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -25,9 +36,11 @@ type Option =
 	RouterOutputs["dictionaries"]["organizationTypes"]["options"][number];
 
 function TypeEditor({
+	dictionaryKey,
 	option,
 	onDone,
 }: {
+	dictionaryKey: OrganizationDictionaryKey;
 	option?: Option;
 	onDone: () => void;
 }) {
@@ -41,7 +54,7 @@ function TypeEditor({
 		trpc.dictionaries.saveOrganizationType.mutationOptions({
 			onSuccess: async () => {
 				await cache.organizationTypes();
-				toast.success(option ? "Type updated" : "Type added");
+				toast.success(option ? "Option updated" : "Option added");
 				onDone();
 			},
 			onError: (error) => toast.error(error.message),
@@ -53,6 +66,7 @@ function TypeEditor({
 			onSubmit={(event) => {
 				event.preventDefault();
 				save.mutate({
+					key: dictionaryKey,
 					id: option?.id,
 					label,
 					color,
@@ -62,7 +76,7 @@ function TypeEditor({
 		>
 			<div className="grid gap-4 sm:grid-cols-2">
 				<div className="space-y-2">
-					<Label htmlFor="type-name">Type name</Label>
+					<Label htmlFor="type-name">Option name</Label>
 					<Input
 						id="type-name"
 						value={label}
@@ -118,7 +132,7 @@ function TypeEditor({
 						Cancel
 					</Button>
 					<Button type="submit" disabled={!label.trim() || save.isPending}>
-						{save.isPending ? "Saving…" : "Save type"}
+						{save.isPending ? "Saving…" : "Save option"}
 					</Button>
 				</div>
 			</div>
@@ -126,17 +140,23 @@ function TypeEditor({
 	);
 }
 
-export function DictionarySettings() {
+function DictionaryPanel({
+	dictionary,
+}: {
+	dictionary: (typeof ORGANIZATION_DICTIONARIES)[number];
+}) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const query = useQuery(trpc.dictionaries.organizationTypes.queryOptions());
+	const query = useQuery(
+		trpc.dictionaries.organizationTypes.queryOptions({ key: dictionary.key }),
+	);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [showInactive, setShowInactive] = useState(false);
 	const save = useMutation(
 		trpc.dictionaries.saveOrganizationType.mutationOptions({
 			onSuccess: async () => {
 				await cache.organizationTypes();
-				toast.success("Type updated");
+				toast.success("Option updated");
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -157,14 +177,14 @@ export function DictionarySettings() {
 		<section className="max-w-3xl space-y-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 className="text-lg font-semibold">Organization type</h2>
+					<h2 className="text-lg font-semibold">{dictionary.label}</h2>
 					<p className="text-sm text-muted-foreground">
-						One colored label per organization, displayed beside its name.
+						{dictionary.description}
 					</p>
 				</div>
 				{canManage ? (
 					<Button onClick={() => setEditing("new")} disabled={editing !== null}>
-						Add type
+						Add option
 					</Button>
 				) : null}
 			</div>
@@ -175,6 +195,7 @@ export function DictionarySettings() {
 			) : null}
 			{editing !== null ? (
 				<TypeEditor
+					dictionaryKey={dictionary.key}
 					key={editing}
 					option={options.find((option) => option.id === editing)}
 					onDone={() => setEditing(null)}
@@ -186,14 +207,14 @@ export function DictionarySettings() {
 					size="sm"
 					onClick={() => setShowInactive(!showInactive)}
 				>
-					{showInactive ? "Hide inactive types" : "Show inactive types"}
+					{showInactive ? "Hide inactive options" : "Show inactive options"}
 				</Button>
 			) : null}
 			{visible.length === 0 ? (
 				<div className="rounded-lg border border-dashed p-6">
-					<p className="font-medium">No organization types yet</p>
+					<p className="font-medium">No options yet</p>
 					<p className="text-sm text-muted-foreground">
-						Add your first type, then select it beside an organization name.
+						Add an option, then select it in an organization’s details.
 					</p>
 				</div>
 			) : (
@@ -229,7 +250,11 @@ export function DictionarySettings() {
 										size="sm"
 										disabled={save.isPending || editing !== null}
 										onClick={() =>
-											save.mutate({ ...option, archived: !option.archived })
+											save.mutate({
+												key: dictionary.key,
+												...option,
+												archived: !option.archived,
+											})
 										}
 										aria-label={`${option.archived ? "Restore" : "Deactivate"} ${option.label}`}
 									>
@@ -242,9 +267,30 @@ export function DictionarySettings() {
 				</div>
 			)}
 			<p className="text-sm text-muted-foreground">
-				Deactivated types stay on existing organizations and cannot be selected
-				again until restored.
+				Deactivated options stay on existing organizations and cannot be
+				selected again until restored.
 			</p>
 		</section>
+	);
+}
+
+export function DictionarySettings() {
+	return (
+		<Tabs defaultValue="organization_type">
+			<div className="max-w-full overflow-x-auto">
+				<TabsList>
+					{ORGANIZATION_DICTIONARIES.map((dictionary) => (
+						<TabsTrigger key={dictionary.key} value={dictionary.key}>
+							{dictionary.label}
+						</TabsTrigger>
+					))}
+				</TabsList>
+			</div>
+			{ORGANIZATION_DICTIONARIES.map((dictionary) => (
+				<TabsContent key={dictionary.key} value={dictionary.key}>
+					<DictionaryPanel dictionary={dictionary} />
+				</TabsContent>
+			))}
+		</Tabs>
 	);
 }

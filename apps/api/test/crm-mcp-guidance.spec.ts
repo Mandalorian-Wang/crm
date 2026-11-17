@@ -24,7 +24,9 @@ test("MCP rejects unknown, non-filterable fields and option labels", () => {
 			type: "SELECT" as const,
 			readOnly: false,
 			filterable: true,
-			options: [{ id: "startup-id", label: "Startup", position: 0 }],
+			options: [
+				{ id: "startup-id", label: "Startup", position: 0, archived: false },
+			],
 		},
 	];
 	expect(() =>

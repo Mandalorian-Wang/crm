@@ -1,8 +1,8 @@
 import { workspaceRoleOf } from "@crm/auth/organization";
 import type { Db } from "@crm/db";
 import {
-	ORGANIZATION_TYPE_KEY,
-	type organizationTypeInput,
+	type OrganizationDictionaryKey,
+	type organizationDictionaryOptionInput,
 	tagColor,
 } from "@crm/validation/organization-type";
 import {
@@ -18,11 +18,14 @@ import { InjectDatabase } from "../database/database.constants";
 export class DictionariesService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
-	async organizationTypes(userId: string) {
+	async organizationTypes(
+		userId: string,
+		key: OrganizationDictionaryKey = "organization_type",
+	) {
 		const [role, options] = await Promise.all([
 			workspaceRoleOf(userId),
 			this.db.fieldOption.findMany({
-				where: { field: { entity: "COMPANY", key: ORGANIZATION_TYPE_KEY } },
+				where: { field: { entity: "COMPANY", key } },
 				orderBy: [{ position: "asc" }, { id: "asc" }],
 			}),
 		]);
@@ -40,22 +43,23 @@ export class DictionariesService {
 
 	async saveOrganizationType(
 		userId: string,
-		input: z.infer<typeof organizationTypeInput>,
+		input: z.infer<typeof organizationDictionaryOptionInput>,
 	) {
 		if (!(await workspaceRoleOf(userId)))
 			throw new ForbiddenException(
 				"Only CRM team members can manage dictionaries.",
 			);
+		const key = input.key;
 		await this.db.$transaction(async (tx) => {
-			await tx.$queryRaw`SELECT id FROM "fieldDefinition" WHERE entity = 'COMPANY' AND key = ${ORGANIZATION_TYPE_KEY} FOR UPDATE`;
+			await tx.$queryRaw`SELECT id FROM "fieldDefinition" WHERE entity = 'COMPANY' AND key = ${key} FOR UPDATE`;
 			const field = await tx.fieldDefinition.findUniqueOrThrow({
 				where: {
-					entity_key: { entity: "COMPANY", key: ORGANIZATION_TYPE_KEY },
+					entity_key: { entity: "COMPANY", key },
 				},
 				include: { options: true },
 			});
 			if (input.id && !field.options.some((option) => option.id === input.id))
-				throw new NotFoundException("That organization type does not exist.");
+				throw new NotFoundException("That dictionary option does not exist.");
 			if (
 				field.options.some(
 					(option) =>
@@ -64,7 +68,7 @@ export class DictionariesService {
 				)
 			)
 				throw new ConflictException(
-					"An organization type already uses that name. Rename or restore the existing type.",
+					"This dictionary already uses that name. Rename or restore the existing option.",
 				);
 			const data = {
 				label: input.label,
@@ -84,6 +88,6 @@ export class DictionariesService {
 					},
 				});
 		});
-		return this.organizationTypes(userId);
+		return this.organizationTypes(userId, key);
 	}
 }

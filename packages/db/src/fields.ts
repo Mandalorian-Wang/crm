@@ -21,6 +21,7 @@ export type FieldDefinitionWithOptions = FieldDefinitionModel & {
 };
 
 export type SerializedFieldOption = {
+	archived: boolean;
 	id: string;
 	label: string;
 	position: number;
@@ -69,6 +70,7 @@ export function serializeField(
 				id: option.id,
 				label: option.label,
 				position: option.position,
+				archived: false,
 			})),
 	};
 }
@@ -79,19 +81,11 @@ export function serializeFieldFor(
 ): SerializedField {
 	const field = serializeField(definition);
 
-	if (definition.type !== "SELECT" || typeof value !== "string") return field;
-	if (field.options.some((option) => option.id === value)) return field;
+	const selected = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+	if (definition.type !== "SELECT" && definition.type !== "MULTI_SELECT") return field;
+	const retired = definition.options.filter((option) => selected.includes(option.id) && !field.options.some((active) => active.id === option.id));
+	return { ...field, options: [...field.options, ...retired.map((option) => ({ id: option.id, label: `${option.label} · inactive`, position: option.position, archived: true }))].sort((a, b) => a.position - b.position) };
 
-	const retired = definition.options.find((option) => option.id === value);
-	if (!retired) return field;
-
-	return {
-		...field,
-		options: [
-			...field.options,
-			{ id: retired.id, label: retired.label, position: retired.position },
-		].sort((left, right) => left.position - right.position),
-	};
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -167,7 +161,17 @@ export function coerceValue(
 			return { date: parsed };
 		}
 
+		case "MULTI_SELECT": {
+			if (!Array.isArray(input) || input.some((value) => typeof value !== "string"))
+				throw new FieldValueError(definition.key, `${definition.label} takes an array of option IDs.`);
+			const ids = [...new Set(input as string[])];
+			if (!ids.length && definition.required) throw new FieldValueError(definition.key, `${definition.label} cannot be empty.`);
+			if (ids.some((id) => !definition.options.some((option) => option.id === id && option.archivedAt === null)))
+				throw new FieldValueError(definition.key, `${definition.label} contains an unknown or inactive option.`);
+			return { optionIds: ids.length ? ids : null };
+		}
 		case "SELECT": {
+			if (typeof input !== "string") throw new FieldValueError(definition.key, `${definition.label} takes one option.`);
 			const raw = String(input).trim();
 			const option = definition.options.find(
 				(entry) =>
@@ -206,6 +210,8 @@ export function readValue(
 			return row.number === null ? null : Number(row.number);
 		case "DATE":
 			return row.date === null ? null : row.date.toISOString();
+		case "MULTI_SELECT":
+			return row.optionIds;
 		case "SELECT":
 			return row.optionId ?? null;
 		case "USER":
@@ -235,6 +241,7 @@ export function attachValues(
 
 export type FieldWriter = {
 	fieldValue: {
+		findFirst(args: { where: Record<string, unknown>; select: { optionIds: true } }): Promise<{ optionIds: string[] } | null>;
 		deleteMany(args: { where: Record<string, unknown> }): Promise<unknown>;
 		upsert(args: {
 			where: Record<string, unknown>;
@@ -264,17 +271,20 @@ export async function writeValues(
 			.map((definition) => [definition.key, definition]),
 	);
 
-	const writes = Object.entries(values).map(([key, input]) => {
+	const writes = await Promise.all(Object.entries(values).map(async ([key, input]) => {
 		const definition = byKey.get(key);
 
 		if (!definition) {
 			throw new FieldValueError(key, `There is no field called "${key}".`);
 		}
 
-		const data = coerceValue(definition, input);
+		const current = definition.type === "MULTI_SELECT" && definition.options.some((option) => option.archivedAt !== null)
+			? await tx.fieldValue.findFirst({ where: { fieldId: definition.id, [column]: recordId }, select: { optionIds: true } }) : null;
+		const writable = current ? { ...definition, options: definition.options.map((option) => current.optionIds.includes(option.id) ? { ...option, archivedAt: null } : option) } : definition;
+		const data = coerceValue(writable, input);
 
 		return { definition, data, stored: data[columnFor(definition.type)] };
-	});
+	}));
 
 	await assertUsersExist(tx, writes);
 

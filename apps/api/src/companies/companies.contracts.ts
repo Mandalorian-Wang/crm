@@ -98,6 +98,7 @@ const ownerSummaryOutput = z.object({
 });
 
 const companyFieldOptionOutput = z.object({
+	archived: z.boolean().default(false),
 	id: z.string(),
 	label: z.string(),
 	position: z.number(),
@@ -119,7 +120,13 @@ const companyRecordFieldOutput = z.object({
 	position: z.number(),
 	archived: z.boolean(),
 	options: z.array(companyFieldOptionOutput),
-	value: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+	value: z.union([
+		z.string(),
+		z.array(z.string()),
+		z.number(),
+		z.boolean(),
+		z.null(),
+	]),
 });
 
 export const companyRowOutput = z.object({

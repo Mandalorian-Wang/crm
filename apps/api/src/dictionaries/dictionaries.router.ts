@@ -1,5 +1,6 @@
 import {
-	organizationTypeInput,
+	organizationDictionaryInput,
+	organizationDictionaryOptionInput,
 	organizationTypesOutput,
 } from "@crm/validation/organization-type";
 import { Inject } from "@nestjs/common";
@@ -25,14 +26,18 @@ export class DictionariesRouter {
 		private readonly dictionaries: DictionariesService,
 	) {}
 	@Query({
+		input: organizationDictionaryInput,
 		output: organizationTypesOutput,
 		meta: restMeta("GET", "/dictionaries/organization-types", ["Dictionaries"]),
 	})
-	async organizationTypes(@Ctx() ctx: AuthedTrpcContext) {
-		return this.dictionaries.organizationTypes(ctx.user.id);
+	async organizationTypes(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof organizationDictionaryInput>,
+	) {
+		return this.dictionaries.organizationTypes(ctx.user.id, input.key);
 	}
 	@Mutation({
-		input: organizationTypeInput,
+		input: organizationDictionaryOptionInput,
 		output: organizationTypesOutput,
 		meta: restMeta("POST", "/dictionaries/organization-types", [
 			"Dictionaries",
@@ -40,7 +45,7 @@ export class DictionariesRouter {
 	})
 	async saveOrganizationType(
 		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof organizationTypeInput>,
+		@Input() input: z.infer<typeof organizationDictionaryOptionInput>,
 	) {
 		return this.dictionaries.saveOrganizationType(ctx.user.id, input);
 	}
