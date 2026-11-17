@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import type { Db } from "@crm/db";
 import { requestImage } from "@crm/validation/crm-request";
 import { type NoteMention, noteMentions } from "@crm/validation/daily-note";
@@ -88,6 +89,10 @@ export class DailyNotesService {
 			],
 			skipDuplicates: true,
 		});
+		const persisted = await this.db.organizationDailyNote.findUniqueOrThrow({
+			where: { id },
+		});
+		assertDailyNoteReplay(persisted, input);
 		return this.list(input.companyId);
 	}
 	async update(input: z.infer<typeof dailyNoteUpdateInput>, userId: string) {
@@ -104,4 +109,18 @@ export class DailyNotesService {
 			);
 		return this.list(input.companyId);
 	}
+}
+
+export function assertDailyNoteReplay(
+	stored: { body: string; mentions: unknown; images: unknown },
+	input: z.infer<typeof dailyNoteCreateInput>,
+) {
+	if (
+		stored.body !== input.body ||
+		!isDeepStrictEqual(stored.mentions, input.mentions) ||
+		!isDeepStrictEqual(stored.images, input.images ?? [])
+	)
+		throw new ConflictException(
+			"This requestId already records a different daily note. Read dailyNotes before retrying; use a new requestId for a new note.",
+		);
 }

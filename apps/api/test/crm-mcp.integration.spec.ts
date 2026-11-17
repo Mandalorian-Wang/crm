@@ -149,6 +149,52 @@ test("CRM MCP authenticates a member and performs real CRUD with shared validati
 		expect((await call("contacts.byId", { id: contactId })).firstName).toBe(
 			"Updated",
 		);
+		const inboundNote = {
+			contactId,
+			type: "NOTE",
+			body: "Confirmed contact; reply unknown.",
+			requestId: randomUUID(),
+		};
+		await call("activities.create", inboundNote, true);
+		await call("activities.create", inboundNote, true);
+		expect(
+			(await call("activities.timeline", { contactId, filter: "notes" }))
+				.entries,
+		).toHaveLength(1);
+		await expect(
+			call(
+				"activities.create",
+				{ ...inboundNote, body: "Different evidence" },
+				true,
+			),
+		).rejects.toThrow("different activity");
+		const contactEvent = {
+			companyId,
+			contactId,
+			channel: "Email",
+			body: "SENT verified; reply unknown",
+			occurredAt: "2026-01-01T00:00:00Z",
+			requestId: randomUUID(),
+		};
+		await call("companies.logContact", contactEvent, true);
+		await call("companies.logContact", contactEvent, true);
+		await expect(
+			call(
+				"companies.logContact",
+				{ ...contactEvent, body: "Different evidence" },
+				true,
+			),
+		).rejects.toThrow("different contact event");
+		const context = await call("companies.customerContext", { id: companyId });
+		expect(context.activities.entries).toHaveLength(1);
+		expect(context.contactHistory.entries).toHaveLength(1);
+		expect(context.followUp.status).toBe("CONTACTED");
+		await call("users.setCompanyFavorite", { companyId, favorite: true }, true);
+		expect(
+			(await call("companies.list", { q: id, favorites: "mine" })).rows.some(
+				(row: { id: string }) => row.id === companyId,
+			),
+		).toBe(true);
 		const images = [
 			{
 				id: randomUUID(),

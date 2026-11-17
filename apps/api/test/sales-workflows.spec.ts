@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { assertActivityReplay } from "../src/activities/activity-replay";
+import { assertDailyNoteReplay } from "../src/companies/daily-notes.service";
 import { assertContactLogReplay } from "../src/companies/follow-up.service";
 import { operationGuidance } from "../src/mcp/crm-mcp-guidance";
 
@@ -82,4 +83,21 @@ test("customer review guidance includes all note stores and explicit evidence bo
 	expect(operationGuidance("users.setCompanyFavorite", "sales")).toMatchObject({
 		scope: expect.stringContaining("current API key user"),
 	});
+});
+
+test("daily-note retries cannot silently discard changed content or attachments", () => {
+	const request = {
+		companyId: "org",
+		requestId: crypto.randomUUID(),
+		body: "Confirmed interview",
+		mentions: [],
+	};
+	const stored = { body: request.body, mentions: [], images: [] };
+	expect(() => assertDailyNoteReplay(stored, request)).not.toThrow();
+	expect(() =>
+		assertDailyNoteReplay(stored, { ...request, body: "New claim" }),
+	).toThrow("different daily note");
+	expect(() =>
+		assertDailyNoteReplay({ ...stored, images: [{ id: "changed" }] }, request),
+	).toThrow("different daily note");
 });
