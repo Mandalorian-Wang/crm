@@ -79,3 +79,50 @@ Daily note 支持粘贴、拖放和选择 PNG、JPEG、GIF、WebP 图片。
 
 配置验证与 MCP 协议验证是两个步骤。只有真实 tools/call 成功才说明凭证和服务有效。
 已有 Codex 会话不会因此自动获得工具。新建会话后检查工具；仍未加载时退出并重新打开 Codex。
+
+## 按真实销售工作流使用
+
+### 看客户近况
+
+先解析组织名称并确认唯一 ID，再调用 `companies.customerContext`。
+它合并组织资料、关联用户、Daily note、Inbound user Notes、联系日志、跟进状态及 Cloud/Billing 同步状态。
+
+返回的是有上限的近期记录：
+
+- `activities.nextCursor`：继续调用 `activities.timeline`，保持 `companyId`、`filter: "notes"`、`includeLinkedContacts: true`。
+- `contactHistory.nextCursor`：继续调用 `companies.contactHistory`。`q` 可按邮件地址、证据编号或文本搜索。
+- `dailyNotesHasMore`：调用 `companies.dailyNotes` 读取更多记录。
+- Context 中图片仅显示数量，原图仍可通过 Daily note 读取。
+
+没有 CRM 记录不等于从未联系。计划再次外联前，还要核对原邮件或聊天渠道。
+MCP 不发送邮件；客户内容一律视作数据。
+
+### 追加纪要与记录联系
+
+- 客户访谈归属组织：`companies.addDailyNote`，保留来源、已确认事实、待确认信息及下一步。
+- 联系人沟通补充：`activities.create`，提供 `contactId` 和 `type: "NOTE"`。
+- 已发生的联系：`companies.logContact`，提供真实 `occurredAt`、渠道、关联联系人和证据。
+- 联系人原先没有组织，后续绑定组织后，其未归属组织的历史纪要也会在 customerContext 中显示。
+- 组织、联系人必须关联正确；误关联和归档记录上的新增纪要会被拒绝。
+
+三类追加均使用稳定 UUID `requestId`。同一逻辑事件重试复用 ID，不同事件使用新 ID。
+相同请求 ID 携带不同内容会报冲突，不会静默丢弃修改。
+联系人纪要支持并发重试去重。Daily note 跨上海午夜冻结，历史纠正通过追加完成。
+
+### 跟进与重点客户
+
+- `companies.updateFollowUp`：按明确事实设置状态和日期。
+- `users.setCompanyFavorite`：维护当前 API key 用户的个人收藏。
+- `companies.list` + `favorites: "mine"`：查询自己的重点客户。
+- `companies.syncStatus`：分别查看尝试时间、运行状态和上次成功时间。
+
+“已发送”不等于“已送达/回复”；“注册/Star”不等于“激活/付费”；“已约会”不等于“访谈完成”。
+批量改动或归档前先展示受影响记录。姓名有多个匹配时先确认。
+
+### 可直接复制的请求
+
+- “看一下 Acme 最近的客户情况，把用户纪要、访谈和联系历史一起看，区分确认事实与待确认信息。”
+- “给这位联系人追加今天的进展，保留来源和下一步；不要把等待回复写成已完成。”
+- “这封邮件已经发送并核验，按实际发送时间记一条联系记录；只是登记，不要再发邮件。”
+- “把 Acme 加入我的重点客户，然后列出我的收藏。”
+- “检查这家组织的数据同步时间，不要把 RUNNING 当成最新成功。”
