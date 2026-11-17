@@ -105,6 +105,18 @@ API 由 Supervisor 直接运行 Bun TypeScript，不需要上传本地 macOS 构
 Next.js 必须在 Linux sandbox 构建。修改 `APP_URL` / `API_URL` 后也要重新构建网页。
 构建失败时读取 `/root/crm-release-build.log`，保持维护状态或执行明确的代码回退。
 
+修改 nginx 路由时，当前 sandbox 使用 `/etc/nginx/sites-available/default`：
+
+```sh
+python deploy/boxlite/manage.py run 'set -eu
+cp /app/crm/deploy/boxlite/nginx.conf /etc/nginx/sites-available/default
+nginx -t
+nginx -s reload'
+```
+
+仓库的 nginx.conf 是 server 配置片段。不要将其直接作为 `nginx -c` 的主配置。
+公开的 `/api/mcp/crm`、`/rest/` 和 `/openapi.json` 必须转发到 API。
+
 ## 5. 恢复服务并验收
 
 ```sh
