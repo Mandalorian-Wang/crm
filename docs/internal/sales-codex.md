@@ -150,3 +150,15 @@ A manual value, including an explicit clear, survives subsequent imports.
 Untouched records continue to detect Cloud/GitHub automatically.
 Cloud/GitHub list tabs reflect synced identities, not the editable registration-source label.
 Cloud IDs, registration dates, and billing remain read-only.
+
+## 增长渠道、客户区域与友商
+
+Cloud organizations 的三个字典字段由团队在 Settings → Dictionaries 维护：
+
+- `growth_channel`：增长渠道，单选。
+- `customer_region`：客户实际所在地，单选；不是 Cloud 部署区域。
+- `competitors`：正在测试或使用的友商，多选；空值表示尚未记录。
+
+先调用 `crm_operations` 和 `crm_describe`。使用 `dictionaries.organizationTypes` 的 `key` 参数获取对应字典，使用 `dictionaries.saveOrganizationType` 携带同一 `key` 维护选项。省略 `key` 仍操作原 Organization type。
+
+通过 `companies.update` 的 `data.fields` 更新客户：单选传选项 ID，多选传 ID 数组。追加一个友商之前先读取现有值，保留其他选择；空数组清空。不得把选项名称当作 ID。停用的历史选项可保留或移除，但不能重新添加。组合过滤时，同一字段内为 OR，不同字段间为 AND。
